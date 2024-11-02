@@ -11,7 +11,6 @@ import os
 def load_tasks():
     """Load tasks from the JSON file and return a list of tasks."""
     if not os.path.exists("tasks.json"):
-        messagebox.showwarning("Warning!", "No file task file was found")
         return []
 
     try:

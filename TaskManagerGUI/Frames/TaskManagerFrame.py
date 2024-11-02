@@ -115,7 +115,34 @@ class TaskManagerFrame(ctk.CTkFrame):
             messagebox.showwarning("Selection Error", "Please select a task to add a command.")
             return
 
-        command = ctk.CTkInputDialog(text="Enter Command", title="Add Command").get_input()
+        # Create the input dialog first without displaying it
+        input_dialog = ctk.CTkInputDialog(text="Enter Command", title="Add Command")
+
+        # Retrieve the parent window's geometry
+        parent_x = self.winfo_x()  # X position of the parent window
+        parent_y = self.winfo_y()  # Y position of the parent window
+        parent_width = self.winfo_width()  # Width of the parent window
+        parent_height = self.winfo_height()  # Height of the parent window
+
+        # Get the dimensions of the input dialog
+        dialog_width = 450  # Set a fixed width or retrieve dynamically if possible
+        dialog_height = 150  # Set a fixed height or retrieve dynamically if possible
+
+        # Calculate the center position for the dialog
+        x_position = parent_x + (parent_width // 2) - (dialog_width // 2)
+        y_position = parent_y + (parent_height // 2) - (dialog_height // 2)
+
+        # Set the position of the dialog
+        input_dialog.geometry(f"{dialog_width}x{dialog_height}+{x_position}+{y_position}")
+
+        # Display the dialog and wait for user input
+        command = input_dialog.get_input()
+
+        # Check if user pressed OK and provided a command
+        if command is None:
+            return  # User pressed Cancel, do nothing
+
+        # If command is not empty, insert it into the command tree
         if command:
             self.command_tree.insert("", tk.END, values=(command,))
             self.update_task_file()  # Update the task file after adding command
@@ -126,15 +153,45 @@ class TaskManagerFrame(ctk.CTkFrame):
     def remove_command(self):
         """Remove the selected command from the Treeview and update the task in the JSON file."""
         selected_item = self.command_tree.selection()
+        selected_index = self.task_listbox.curselection()
         if selected_item:
             self.command_tree.delete(selected_item)
             self.update_task_file()  # Update the task file after removing command
 
+            # Keep the selected task highlighted
+            self.task_listbox.selection_set(selected_index)  # Re-select the same item
+
     def add_task(self):
         """Add a new task. Commands will be added later."""
-        # Show an input dialog to enter a new task name
-        task_name = ctk.CTkInputDialog(text="Enter Task Name", title="Add New Task").get_input()
 
+        # Create the input dialog first without displaying it
+        input_dialog = ctk.CTkInputDialog(text="Enter Task Name", title="Add New Task")
+
+        # Retrieve the parent window's geometry
+        parent_x = self.winfo_x()  # X position of the parent window
+        parent_y = self.winfo_y()  # Y position of the parent window
+        parent_width = self.winfo_width()  # Width of the parent window
+        parent_height = self.winfo_height()  # Height of the parent window
+
+        # Get the dimensions of the input dialog
+        dialog_width = 450  # Set a fixed width or retrieve dynamically if possible
+        dialog_height = 150  # Set a fixed height or retrieve dynamically if possible
+
+        # Calculate the center position for the dialog
+        x_position = parent_x + (parent_width // 2) - (dialog_width // 2)
+        y_position = parent_y + (parent_height // 2) - (dialog_height // 2)
+
+        # Set the position of the dialog
+        input_dialog.geometry(f"{dialog_width}x{dialog_height}+{x_position}+{y_position}")
+
+        # Display the dialog and wait for user input
+        task_name = input_dialog.get_input()
+
+        # Check if user pressed OK and provided a task name
+        if task_name is None:
+            return  # User pressed Cancel, do nothing
+
+        # Check if the task name is empty
         if not task_name:
             messagebox.showwarning("Input Error", "Please provide a task name.")
             return
