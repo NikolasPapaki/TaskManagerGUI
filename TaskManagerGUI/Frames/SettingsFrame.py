@@ -28,9 +28,9 @@ class SettingsFrame(ctk.CTkFrame):
         current_theme = ctk.get_appearance_mode()
         self.theme_switch.select() if current_theme.lower() == "dark" else self.theme_switch.deselect()
 
-        # App update button
-        self.update_button = ctk.CTkButton(body_frame, text="Check for Updates", command=self.check_for_updates)
-        self.update_button.pack(pady=(20, 10), anchor="w", padx=20)
+        # # App update button
+        # self.update_button = ctk.CTkButton(body_frame, text="Check for Updates", command=self.check_for_updates)
+        # self.update_button.pack(pady=(20, 10), anchor="w", padx=20)
 
 
     def change_color_mode(self):

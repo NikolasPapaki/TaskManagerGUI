@@ -4,6 +4,7 @@ import shutil
 import zipfile
 import sys
 import subprocess
+import threading
 
 VERSION = "v2.0.0"
 
@@ -11,9 +12,9 @@ class Update_module:
     def __init__(self):
         super().__init__()
         self.repo_owner = 'NikolasPapaki'
-        self.repo_name = 'TaskManagerGUI'
+        self.repo_name = 'TaskManagerGUI_app'
         self.download_dir = 'downloads'
-        self.executable_name = "python main.py"
+        self.executable_name = "TaskManager.exe"  # Name of the executable in the zip
         self.current_version = VERSION
         self.latest_release_url = f'https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases/latest'
 
@@ -28,11 +29,10 @@ class Update_module:
         return latest_release["tag_name"], latest_release["zipball_url"]
 
     def download_zipball(self, url):
-        headers = {"Authorization": f"token {self.github_token}"}
         os.makedirs(self.download_dir, exist_ok=True)
         zip_path = os.path.join(self.download_dir, 'latest_release.zip')
 
-        with requests.get(url, headers=headers, stream=True) as r:
+        with requests.get(url, stream=True) as r:
             r.raise_for_status()
             with open(zip_path, 'wb') as f:
                 shutil.copyfileobj(r.raw, f)
@@ -42,6 +42,16 @@ class Update_module:
     def extract_zip(self, zip_path):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(self.download_dir)
+
+            # Check if TaskManager.exe is in the extracted files and move it
+            extracted_files = zip_ref.namelist()  # Get a list of extracted files
+            for file in extracted_files:
+                if self.executable_name in file:
+                    # Move TaskManager.exe to the current working directory
+                    shutil.move(os.path.join(self.download_dir, file), os.path.join(os.getcwd(), self.executable_name))
+
+        # Delete the zip file after extraction
+        os.remove(zip_path)
 
     def check_for_updates(self):
         latest_version, _ = self.get_latest_version()
@@ -54,15 +64,12 @@ class Update_module:
         latest_version, zipball_url = self.get_latest_version()
         zip_path = self.download_zipball(zipball_url)
         self.extract_zip(zip_path)
-        print("Update complete. Restarting the application...")
         self.restart_application()
 
+
     def restart_application(self):
-        python = sys.executable
         if os.name == 'nt':
-            subprocess.Popen([python] + sys.argv, creationflags=subprocess.DETACHED_PROCESS)
+            subprocess.Popen(self.executable_name, creationflags=subprocess.DETACHED_PROCESS)
         else:
-            subprocess.Popen([python] + sys.argv)
+            subprocess.Popen(self.executable_name)
         sys.exit(0)
-
-

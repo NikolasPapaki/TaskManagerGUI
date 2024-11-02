@@ -51,5 +51,4 @@ class CustomComboBox(ctk.CTkFrame):
         self.option_frame.pack_forget()
 
     def get_value(self):
-        """Return the current value of the entry."""
         return self.entry.get()
