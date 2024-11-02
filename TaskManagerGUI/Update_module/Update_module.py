@@ -10,17 +10,15 @@ VERSION = "v1.0.0"
 class Update_module:
     def __init__(self):
         super().__init__()
-        self.github_token = "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"
         self.repo_owner = 'NikolasPapaki'
-        self.repo_name = 'ChampSimParser'
+        self.repo_name = 'TaskManagerGUI'
         self.download_dir = 'downloads'
         self.executable_name = "python main.py"
         self.current_version = VERSION
         self.latest_release_url = f'https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases/latest'
 
     def get_latest_version(self):
-        headers = {"Authorization": f"token {self.github_token}"}
-        response = requests.get(self.latest_release_url, headers=headers)
+        response = requests.get(self.latest_release_url)
         response.raise_for_status()
         latest_release = response.json()
 
