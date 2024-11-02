@@ -10,8 +10,6 @@ VERSION = "v1.0.0"
 class Update_module:
     def __init__(self):
         super().__init__()
-        self.repo_owner = 'NikolasPapaki'
-        self.repo_name = 'ChampSimParser'
         self.download_dir = 'downloads'
         self.executable_name = "python main.py"
         self.current_version = VERSION
