@@ -5,7 +5,7 @@ import zipfile
 import sys
 import subprocess
 
-VERSION = "v1.0.0"
+VERSION = "v2.0.0"
 
 class Update_module:
     def __init__(self):
