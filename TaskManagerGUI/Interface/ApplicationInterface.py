@@ -1,7 +1,9 @@
 import customtkinter as ctk
 import inspect
-from Frames import *  # Import all frames from the frames package
+from Frames import *
 import re
+import os
+import json
 
 def button_formating(text):
     """Add spaces before uppercase letters in camel case strings."""
@@ -10,6 +12,11 @@ def button_formating(text):
 class ApplicationInterface:
     def __init__(self, parent):
         self.parent = parent
+
+        # Load settings and set current theme
+        settings = self.load_settings()
+        current_theme = settings.get("theme", "dark")  # Default to "dark" if no theme is found
+        ctk.set_appearance_mode(current_theme)
 
         # Set a specific width for the sidebar (e.g., 250 pixels)
         self.sidebar_width = 250
@@ -31,6 +38,14 @@ class ApplicationInterface:
         # Initialize the first frame
         self.current_frame = None
         self.show_frame(HomeFrame)
+
+
+    def load_settings(self):
+        """Load settings from the JSON file, or return an empty dictionary if the file does not exist."""
+        if os.path.exists("settings.json"):
+            with open("settings.json", "r") as file:
+                return json.load(file)
+        return {}
 
     def create_sidebar_buttons(self):
         # Create a list to hold the button details

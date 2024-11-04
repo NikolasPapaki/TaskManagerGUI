@@ -6,4 +6,3 @@ using customtkinter, including the CustomComboBox widget.
 """
 
 from .custom_combobox import CustomComboBox
-from .custom_sidebar import ApplicationInterface
