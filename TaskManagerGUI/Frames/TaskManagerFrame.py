@@ -4,6 +4,10 @@ from tkinter import ttk
 from tkinter import messagebox
 import json
 import os
+from custom_widgets import CustomInputDialog
+
+
+
 
 class TaskManagerFrame(ctk.CTkFrame):
     ORDER = 2
@@ -51,6 +55,11 @@ class TaskManagerFrame(ctk.CTkFrame):
         self.remove_command_button = ctk.CTkButton(self.buttons_frame, text="Remove Command",
                                                    command=self.remove_command)
         self.remove_command_button.pack(side=tk.LEFT, padx=10, expand=True)
+
+        # Button to remove selected command
+        self.edit_command_button = ctk.CTkButton(self.buttons_frame, text="Edit Command",
+                                                   command=self.edit_command)
+        self.edit_command_button.pack(side=tk.LEFT, padx=10, expand=True)
 
         # Button to add or update task
         self.add_task_button = ctk.CTkButton(self.buttons_frame, text="Add Task", command=self.add_task)
@@ -150,6 +159,30 @@ class TaskManagerFrame(ctk.CTkFrame):
             # Keep the selected task highlighted
             self.task_listbox.selection_set(selected_index)  # Re-select the same item
 
+    def edit_command(self):
+        """Edit the selected command from the Treeview and update the task in the JSON file."""
+        selected_item = self.command_tree.selection()
+        selected_index = self.task_listbox.curselection()
+
+        if selected_item:
+            # Get the current command value
+            current_command = self.command_tree.item(selected_item[0])['values'][0]
+
+            # Create and show the custom input dialog with the current command as the initial value
+            dialog = CustomInputDialog(title="Edit Command",
+                                       initial_value=current_command, parent=self)
+            new_command = dialog.show()
+
+            # Check if the user pressed OK and provided a command
+            if new_command is not None:
+                # If command is not empty, update it in the command tree
+                if new_command:
+                    self.command_tree.item(selected_item[0], values=(new_command,))
+                    self.update_task_file()  # Update the task file after editing command
+
+                    # Keep the selected task highlighted
+                    self.task_listbox.selection_set(selected_index)  # Re-select the same task
+
     def remove_command(self):
         """Remove the selected command from the Treeview and update the task in the JSON file."""
         selected_item = self.command_tree.selection()
@@ -159,7 +192,7 @@ class TaskManagerFrame(ctk.CTkFrame):
             self.update_task_file()  # Update the task file after removing command
 
             # Keep the selected task highlighted
-            self.task_listbox.selection_set(selected_index)  # Re-select the same item
+            self.task_listbox.selection_set(selected_index)  # Re-select the same task
 
     def add_task(self):
         """Add a new task. Commands will be added later."""
