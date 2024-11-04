@@ -9,3 +9,4 @@ from .SettingsFrame import SettingsFrame
 from .AboutFrame import AboutFrame
 from .TaskRunnerFrame import TaskRunnerFrame
 from .TaskManagerFrame import TaskManagerFrame
+# from .LogFrame import LogsFrame

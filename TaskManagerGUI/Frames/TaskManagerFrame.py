@@ -5,9 +5,7 @@ from tkinter import messagebox
 import json
 import os
 from custom_widgets import CustomInputDialog
-
-
-
+import datetime
 
 class TaskManagerFrame(ctk.CTkFrame):
     ORDER = 2
@@ -85,6 +83,34 @@ class TaskManagerFrame(ctk.CTkFrame):
         # Load existing tasks
         self.load_tasks()
 
+    def log_action(self, action, task_name, old_value="", new_value=""):
+        """Log actions performed on tasks."""
+        log_entry = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "action": action,
+            "task_name": task_name,
+            "old_value": old_value,
+            "new_value": new_value
+        }
+        print(log_entry)
+
+        # Load existing logs
+        logs = self.load_logs()
+
+        # Append the new log entry
+        logs.append(log_entry)
+
+        # Save the updated logs back to the file
+        with open("task_logs.json", "w") as log_file:
+            json.dump(logs, log_file, indent=4)
+
+    def load_logs(self):
+        """Load existing logs from the log file."""
+        if os.path.exists("task_logs.json"):
+            with open("task_logs.json", "r") as log_file:
+                return json.load(log_file)
+        return []
+
     def load_tasks(self):
         """Load tasks from the JSON file and populate the listbox."""
         if os.path.exists("tasks.json"):
@@ -157,7 +183,11 @@ class TaskManagerFrame(ctk.CTkFrame):
             self.update_task_file()  # Update the task file after adding command
 
             # Keep the selected task highlighted
-            self.task_listbox.selection_set(selected_index)  # Re-select the same item
+            self.task_listbox.selection_set(selected_index)  # Re-select the same item\
+
+            # Log action
+            self.log_action("Added command", self.task_listbox.get(selected_index[0]), new_value=command)
+
 
     def edit_command(self):
         """Edit the selected command from the Treeview and update the task in the JSON file."""
@@ -182,17 +212,36 @@ class TaskManagerFrame(ctk.CTkFrame):
 
                     # Keep the selected task highlighted
                     self.task_listbox.selection_set(selected_index)  # Re-select the same task
+                    # Log action
+                    if new_command != current_command:
+                        self.log_action("Updated command", self.task_listbox.get(selected_index[0]), old_value=current_command, new_value=new_command)
 
     def remove_command(self):
         """Remove the selected command from the Treeview and update the task in the JSON file."""
         selected_item = self.command_tree.selection()
         selected_index = self.task_listbox.curselection()
+
         if selected_item:
-            self.command_tree.delete(selected_item)
-            self.update_task_file()  # Update the task file after removing command
+            # Get the item ID of the selected command
+            item_id = selected_item[0]
+
+            # Retrieve the item data before deleting
+            item_data = self.command_tree.item(item_id)
+
+            # Delete the selected command
+            self.command_tree.delete(item_id)
+
+            # Update the task file after removing the command
+            self.update_task_file()
 
             # Keep the selected task highlighted
-            self.task_listbox.selection_set(selected_index)  # Re-select the same task
+            if selected_index:
+                self.task_listbox.selection_set(selected_index)  # Re-select the same task
+
+            # Log action with the command data
+            self.log_action("Deleted command", self.task_listbox.get(selected_index[0]), old_value=item_data['values'][0])
+        else:
+            messagebox.showwarning("Selection Error", "Please select a command to remove.")
 
     def add_task(self):
         """Add a new task. Commands will be added later."""
@@ -246,6 +295,7 @@ class TaskManagerFrame(ctk.CTkFrame):
         self.task_listbox.selection_clear(0, tk.END)
         self.task_listbox.selection_set(tk.END)  # Select the last added task
         self.on_task_select(None)  # Load the new task's details
+        self.log_action("Added task", task_name)
 
     def update_task_list(self, task_name, commands):
         """Update tasks in the JSON file."""
@@ -287,6 +337,7 @@ class TaskManagerFrame(ctk.CTkFrame):
             # Clear entry fields
             self.task_name_var.set("")
             self.command_tree.delete(*self.command_tree.get_children())  # Clear Treeview
+            self.log_action("Deleted task", task_name)
 
     def remove_task(self, task_name):
         """Remove the task from the JSON file."""

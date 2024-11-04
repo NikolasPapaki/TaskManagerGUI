@@ -31,7 +31,7 @@ class SettingsFrame(ctk.CTkFrame):
         settings = self.load_settings()
         current_theme = settings.get("theme", "dark")  # Default to "dark" if no theme is found
         ctk.set_appearance_mode(current_theme)
-        self.theme_switch.select() if current_theme == "dark" else self.theme_switch.deselect()
+        self.theme_switch.select() if current_theme.lower() == "dark" else self.theme_switch.deselect()
 
     def change_color_mode(self):
         new_theme = "dark" if self.theme_switch.get() else "light"
