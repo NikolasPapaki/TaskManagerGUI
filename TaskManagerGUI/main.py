@@ -14,7 +14,9 @@ class MyApp(ctk.CTk):
 
         # Create an instance of ApplicationInterface
         self.sidebar = ApplicationInterface(self)
+
 # Run the application
 if __name__ == "__main__":
     app = MyApp()
     app.mainloop()
+

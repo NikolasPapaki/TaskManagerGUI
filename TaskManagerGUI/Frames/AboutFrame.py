@@ -16,7 +16,8 @@ class AboutFrame(ctk.CTkFrame):
         self.description = "This app allows users to manage and run tasks efficiently."
         self.features = [
             "Feature 1: Task Creation",
-            "Feature 2: Task execution"
+            "Feature 2: Task execution",
+            "Featrue 3: Run a Jenkins Pipeline"
         ]
         self.developer_name = "Nikolas Papaki"
         self.developer_email = "nikolaspapakis@hotmail.com"
