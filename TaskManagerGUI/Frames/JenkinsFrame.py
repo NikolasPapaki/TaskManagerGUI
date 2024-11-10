@@ -69,12 +69,25 @@ class JenkinsFrame(ctk.CTkFrame):
         self.job_error_message = ctk.CTkLabel(self.job_entry_frame, text="Field Job Name is required", text_color=default_text_color)
         self.job_error_message.pack(side="left", padx=5, anchor="w")
 
-        # Parameters Entry (optional)
+        # Parameters Entry (optional) with Enable/Disable checkbox
         self.params_entry_frame = ctk.CTkFrame(body_frame)
         self.params_entry_frame.pack(pady=5, padx=20, fill="x")
+
         ctk.CTkLabel(self.params_entry_frame, text="Parameters (optional):").pack(side="left", anchor="w", padx=10)
         self.params_entry = ctk.CTkEntry(self.params_entry_frame, width=300)
         self.params_entry.pack(side="left", pady=5)
+
+        # Checkbox to enable/disable parameters entry
+        self.params_checkbox = ctk.CTkCheckBox(
+            self.params_entry_frame,
+            text="Enable Parameters",
+            command=self.toggle_params_entry
+        )
+        self.params_checkbox.pack(side="left", padx=10)
+
+        # Set initial state of the parameters entry and checkbox
+        self.params_entry.configure(state="disabled")
+        self.params_checkbox.deselect()
 
         # Trigger Button
         trigger_button = ctk.CTkButton(body_frame, text="Trigger Job", command=self.trigger_jenkins_job)
@@ -95,6 +108,13 @@ class JenkinsFrame(ctk.CTkFrame):
         # Bind the treeview selection event to the function
         self.treeview.bind("<<TreeviewSelect>>", self.select_job_from_history)
 
+        # Create a right-click menu
+        self.treeview_menu = tkinter.Menu(self, tearoff=0)
+        self.treeview_menu.add_command(label="Delete", command=self.delete_selected_job)
+
+        # Bind right-click to display the context menu
+        self.treeview.bind("<Button-3>", self.show_treeview_menu)
+
         # Set up the column headings
         self.treeview.heading("Job Name", text="Job Name")
         self.treeview.heading("URL", text="URL")
@@ -108,6 +128,20 @@ class JenkinsFrame(ctk.CTkFrame):
 
         # Load credentials if are saved
         self.load_credential_data()
+
+    def show_treeview_menu(self, event):
+        # Select the row under the cursor and display the menu
+        row_id = self.treeview.identify_row(event.y)
+        if row_id:
+            self.treeview.selection_set(row_id)
+            self.treeview_menu.post(event.x_root, event.y_root)
+
+    def toggle_params_entry(self):
+        if self.params_checkbox.get():
+            self.params_entry.configure(state="normal")
+        else:
+            self.params_entry.delete(0,tkinter.END)
+            self.params_entry.configure(state="disabled")
 
 
     def trigger_jenkins_job(self):
@@ -137,10 +171,16 @@ class JenkinsFrame(ctk.CTkFrame):
 
             # Prepare parameters if provided
             params = {}
-            if parameters:
+            if self.params_checkbox.get():
                 # Expecting parameters in the form key=value,key2=value2
-                param_pairs = parameters.split(",")
-                params = dict(pair.split("=") for pair in param_pairs)
+                try:
+                    param_pairs = parameters.split(",")
+                    params = dict(pair.split("=") for pair in param_pairs)
+                except Exception:
+                    messagebox.showwarning("Error", "An error occurred parsing the parameter.")
+                    return
+
+            self.add_job_to_history(job_name, url, parameters)  # Add job to history if successful
 
             try:
                 # Send the POST request to trigger the Jenkins job
@@ -272,8 +312,19 @@ class JenkinsFrame(ctk.CTkFrame):
             self.url_entry.delete(0, "end")  # Clear the existing value
             self.url_entry.insert(0, url)  # Set the URL
 
-            self.params_entry.delete(0, "end")  # Clear the existing value
-            self.params_entry.insert(0, parameters)  # Set the parameters
+            # Params checkbox is enabled so just add the value
+            if parameters:
+                if not self.params_checkbox.get():
+                    self.params_checkbox.select()
+                    self.toggle_params_entry()
+
+                self.params_entry.delete(0, "end")  # Clear the existing value
+                self.params_entry.insert(0, parameters)  # Set the parameters
+            else:
+                self.params_checkbox.deselect()
+                self.params_entry.delete(0, "end")  # Clear the existing value
+
+
 
 
     def load_settings(self):
@@ -321,3 +372,29 @@ class JenkinsFrame(ctk.CTkFrame):
 
         with open("settings.json", "w") as file:
             json.dump(settings, file, indent=4)
+
+    def delete_selected_job(self):
+        # Get the selected item from the Treeview
+        selected_item = self.treeview.selection()
+        if selected_item:
+            # Get values of the selected item to match in history
+            job_name, url, parameters = self.treeview.item(selected_item, "values")
+
+            # Delete the selected item from the Treeview
+            self.treeview.delete(selected_item)
+
+            # Load current job history
+            if os.path.exists(self.HISTORY_FILE):
+                with open(self.HISTORY_FILE, "r") as file:
+                    job_history = json.load(file)
+
+                # Remove the matching job from the job history list
+                updated_history = [
+                    job for job in job_history
+                    if
+                    not (job["job_name"] == job_name and job["url"] == url and job.get("parameters", "") == parameters)
+                ]
+
+                # Write the updated history back to the file
+                with open(self.HISTORY_FILE, "w") as file:
+                    json.dump(updated_history, file, indent=4)

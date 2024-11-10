@@ -11,3 +11,4 @@ from .TaskRunnerFrame import TaskRunnerFrame
 from .TaskManagerFrame import TaskManagerFrame
 # from .LogFrame import LogsFrame
 from .JenkinsFrame import JenkinsFrame
+from .ApiRequstFrame import ApiRequestFrame
