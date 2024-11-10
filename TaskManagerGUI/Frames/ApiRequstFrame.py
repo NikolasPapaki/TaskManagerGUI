@@ -5,18 +5,37 @@ from requests_oauthlib import OAuth2Session
 from tkinter import messagebox
 import json
 import threading
+from tkinter import ttk
+import os
+
 
 class ApiRequestFrame(ctk.CTkFrame):
+    ORDER = 5
     def __init__(self, parent):
         super().__init__(parent)
+        self.history_file = 'api_history.json'
 
         self.parent = parent
+
+        # OAuth session and token variables
+        self.oauth_session = None
+        self.access_token = None
+        self.client_id = None
+        self.client_secret = None
+        self.redirect_uri = None
+        self.history = []
+
         # Title for the API Request Tool
         title_label = ctk.CTkLabel(self, text="API Request Tool", font=("Arial", 24))
         title_label.pack(pady=20)
 
-        request_frame = ctk.CTkFrame(self)
-        request_frame.pack(expand=True, anchor="w", fill='both')
+        # Frame to contain both request details and history side-by-side
+        main_content_frame = ctk.CTkFrame(self)
+        main_content_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Left frame for request inputs
+        request_frame = ctk.CTkFrame(main_content_frame)
+        request_frame.pack(side="left", fill="both", expand=True)
 
         # Request Type Dropdown (GET, POST, PUT, DELETE)
         self.request_type_var = tk.StringVar(value="GET")
@@ -57,12 +76,37 @@ class ApiRequestFrame(ctk.CTkFrame):
         self.auth_button = ctk.CTkButton(request_frame, text="OAuth Settings", command=self.open_oauth_popup)
         self.auth_button.pack(side="left", padx=10, pady=20)
 
-        # OAuth session and token variables
-        self.oauth_session = None
-        self.access_token = None
-        self.client_id = None
-        self.client_secret = None
-        self.redirect_uri = None
+        # Right frame for request history
+        history_frame = ctk.CTkFrame(main_content_frame)
+        history_frame.pack(side="right", fill="y", padx=(10, 0))
+
+        # Request History Label and Treeview in history_frame
+        history_label = ctk.CTkLabel(history_frame, text="Request History:")
+        history_label.pack(anchor="w", padx=10, pady=(20, 0))
+
+        self.history_tree = ttk.Treeview(history_frame, columns=("type", "url", "status"), show="headings", height=20)
+        self.history_tree.heading("type", text="Request Type")
+        self.history_tree.heading("url", text="URL")
+        self.history_tree.heading("status", text="Status Code")
+
+        # Adjust column widths if needed
+        self.history_tree.column("type", width=100, anchor="center")
+        self.history_tree.column("url", width=300, anchor="w")
+        self.history_tree.column("status", width=100, anchor="center")
+
+        self.history_tree.pack(fill="both", expand=True, padx=10, pady=5)
+        self.history_tree.bind("<Double-1>", self.load_from_history)
+
+        # Create the context menu
+        self.context_menu = tk.Menu(self, tearoff=0)
+        self.context_menu.add_command(label="Delete", command=self.delete_item)
+
+        # Bind right-click to show context menu
+        self.history_tree.bind("<Button-3>", self.show_context_menu)
+
+        self.selected_item = None
+
+        self.load_history_from_file()
 
     def open_oauth_popup(self):
         """Open a popup to enter OAuth credentials."""
@@ -171,6 +215,7 @@ class ApiRequestFrame(ctk.CTkFrame):
 
             # Update the UI with response
             if response is not None:
+                self.save_to_history(request_type,url,params,response)
                 self.response_label.configure(text=f"Response Code: {response.status_code}")
 
                 try:
@@ -199,5 +244,98 @@ class ApiRequestFrame(ctk.CTkFrame):
                 return json.loads(param_str)
             except json.JSONDecodeError:
                 messagebox.showerror("Invalid JSON", "Please enter a valid JSON format.")
+                self.response_label.configure(text=f"Invalid JSON format!")
+                exit()
         return {}
 
+    def save_to_history(self, request_type, url, params, response):
+        """Insert a history item with an iid."""
+        iid = f"item_{len(self.history)}"  # or use UUID or another unique identifier
+        history_item = {
+            "iid": iid,  # Store iid in the history entry
+            "type": request_type,
+            "url": url,
+            "status": response.status_code,
+            "params": params,
+            "response": response.text
+        }
+        self.history.append(history_item)
+        self.update_history_treeview()  # Refresh the treeview
+
+    def delete_item(self):
+        """Delete the selected item from the Treeview and update the history."""
+        if hasattr(self, 'selected_item'):
+            iid = self.selected_item  # Get the selected item's iid
+            # Find and remove the corresponding history entry based on iid
+            self.history = [entry for entry in self.history if entry["iid"] != iid]
+
+            # Delete the item from the Treeview using its iid
+            self.history_tree.delete(iid)
+
+            # Save the updated history to file
+            self.save_history_to_file()  # Save the updated history to file
+
+    def update_history_treeview(self):
+        """Update the Treeview with the current history."""
+        # Clear the existing entries in the Treeview
+        for item in self.history_tree.get_children():
+            self.history_tree.delete(item)
+
+        # Add each history entry as a new row in the Treeview with a unique iid
+        for entry in self.history:
+            iid = entry["iid"]  # Use the iid from the history entry
+            self.history_tree.insert("", "end", iid=iid, values=(entry["type"], entry["url"], entry["status"]))
+
+    def save_history_to_file(self):
+        """Save request history to a JSON file."""
+        try:
+            with open(self.history_file, "w") as file:
+                json.dump(self.history, file, indent=4)
+        except IOError as e:
+            print(f"Error saving history: {e}")
+
+    def load_from_history(self, event):
+        """Load selected request from history into input fields for replay."""
+        selected_item = self.history_tree.selection()
+        if selected_item:
+            item_index = self.history_tree.index(selected_item[0])  # Get index of selected item
+            entry = self.history[item_index]
+
+            # Load request details back into input fields
+            self.request_type_var.set(entry["type"])
+            self.url_entry.delete(0, tk.END)
+            self.url_entry.insert(0, entry["url"])
+            self.params_entry.delete("1.0", "end")
+            self.params_entry.insert("1.0", json.dumps(entry["params"], indent=4))
+
+            # Display the response in the response textbox
+            self.response_textbox.configure(state="normal")
+            self.response_textbox.delete("1.0", "end")
+            self.response_textbox.insert("1.0", entry["response"])
+            self.response_textbox.configure(state="disabled")
+            self.response_label.configure(text=f"Response Code: {entry['status']}")
+
+    def load_history_from_file(self):
+        """Load request history from a JSON file if it exists."""
+        if os.path.exists(self.history_file):
+            try:
+                with open(self.history_file, "r") as file:
+                    self.history = json.load(file)
+                    # Populate Treeview with loaded history
+                    for entry in self.history:
+                        # Use the correct keys as per your history structure
+                        self.history_tree.insert("", "end",
+                                                 values=(entry["type"], entry["url"], entry["status"]))
+            except (IOError, json.JSONDecodeError) as e:
+                print(f"Error loading history: {e}")
+                self.history = []  # Initialize with an empty list if there's an error
+        else:
+            self.history = []
+
+    def show_context_menu(self, event):
+        """Show the context menu when right-clicking on an item."""
+        # Get the item under the mouse pointer
+        item = self.history_tree.identify_row(event.y)
+        if item:
+            self.context_menu.post(event.x_root, event.y_root)
+            self.selected_item = item  # Store the selected item's iid
