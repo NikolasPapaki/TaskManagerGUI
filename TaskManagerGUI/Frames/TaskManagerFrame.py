@@ -1,11 +1,11 @@
 import customtkinter as ctk
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 import json
 import os
-from custom_widgets import CustomInputDialog
 import datetime
+from custom_widgets import CustomInputDialog
+
 
 class TaskManagerFrame(ctk.CTkFrame):
     ORDER = 2
@@ -22,66 +22,59 @@ class TaskManagerFrame(ctk.CTkFrame):
         self.configuration_frame = ctk.CTkFrame(self)
         self.configuration_frame.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
 
-        # Label for task name entry
+        # Task Name Label and Entry
         task_name_label = ctk.CTkLabel(self.configuration_frame, text="Task Name:")
         task_name_label.pack(pady=(5, 0), padx=10, anchor=tk.W)
 
-        # Entry for task name
         self.task_name_var = ctk.StringVar()
-        self.task_name_entry = ctk.CTkEntry(self.configuration_frame, textvariable=self.task_name_var, placeholder_text="Task Name",
+        self.task_name_entry = ctk.CTkEntry(self.configuration_frame, textvariable=self.task_name_var,
                                             state=tk.DISABLED)
         self.task_name_entry.pack(pady=5, padx=10, fill=ctk.X)
 
-        # Label for command input
+        # Commands Label and Treeview
         command_label = ctk.CTkLabel(self.configuration_frame, text="Commands:")
         command_label.pack(pady=(5, 0), padx=10, anchor=tk.W)
 
-        # Treeview for command input
         self.command_tree = ttk.Treeview(self.configuration_frame, columns=("Commands"), show='headings', height=6)
         self.command_tree.heading("Commands", text="Commands")
         self.command_tree.pack(pady=5, padx=10, fill=tk.BOTH, expand=True)
 
-        # Buttons frame for action buttons
-        self.buttons_frame = ctk.CTkFrame(self)
-        self.buttons_frame.pack(pady=10, padx=10, fill=tk.BOTH)
+        # Right-click menu for commands
+        self.command_menu = tk.Menu(self.command_tree, tearoff=0)
+        self.command_menu.add_command(label="Add Command", command=self.add_command)
+        self.command_menu.add_command(label="Edit Command", command=self.edit_command)
+        self.command_menu.add_command(label="Remove Command", command=self.remove_command)
 
-        # Button to add command
-        self.add_command_button = ctk.CTkButton(self.buttons_frame, text="Add Command", command=self.add_command)
-        self.add_command_button.pack(side=tk.LEFT, padx=10, expand=True)
+        self.command_tree.bind("<Button-3>", self.show_command_menu)
 
-        # Button to remove selected command
-        self.remove_command_button = ctk.CTkButton(self.buttons_frame, text="Remove Command",
-                                                   command=self.remove_command)
-        self.remove_command_button.pack(side=tk.LEFT, padx=10, expand=True)
-
-        # Button to remove selected command
-        self.edit_command_button = ctk.CTkButton(self.buttons_frame, text="Edit Command",
-                                                   command=self.edit_command)
-        self.edit_command_button.pack(side=tk.LEFT, padx=10, expand=True)
-
-        # Button to add or update task
-        self.add_task_button = ctk.CTkButton(self.buttons_frame, text="Add Task", command=self.add_task)
-        self.add_task_button.pack(side=tk.LEFT, padx=10, expand=True)
-
-        # Tasks frame for existing tasks and delete task button
+        # Tasks Frame for Existing Tasks and Delete Task Button
         self.tasks_frame = ctk.CTkFrame(self)
         self.tasks_frame.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
 
-        # Label for tasks list
         task_list_label = ctk.CTkLabel(self.tasks_frame, text="Existing Tasks:")
         task_list_label.pack(pady=(10, 0), padx=10, anchor=tk.W)
 
-        # Listbox to display tasks
         self.task_listbox = tk.Listbox(self.tasks_frame)
         self.task_listbox.pack(pady=10, padx=10, fill=tk.BOTH, expand=True)
         self.task_listbox.bind("<<ListboxSelect>>", self.on_task_select)
 
-        # Button to delete task
-        self.delete_task_button = ctk.CTkButton(self.tasks_frame, text="Delete Task", command=self.delete_task)
-        self.delete_task_button.pack(pady=(5, 20), padx=10)
+        # Right-click menu for tasks
+        self.task_menu = tk.Menu(self.task_listbox, tearoff=0)
+        self.task_menu.add_command(label="Add Task", command=self.add_task)
+        self.task_menu.add_command(label="Delete Task", command=self.delete_task)
+
+        self.task_listbox.bind("<Button-3>", self.show_task_menu)
 
         # Load existing tasks
         self.load_tasks()
+
+    def show_command_menu(self, event):
+        """Display the context menu for the Command Treeview."""
+        self.command_menu.post(event.x_root, event.y_root)
+
+    def show_task_menu(self, event):
+        """Display the context menu for the Task Listbox."""
+        self.task_menu.post(event.x_root, event.y_root)
 
     def log_action(self, action, task_name, old_value="", new_value=""):
         """Log actions performed on tasks."""
