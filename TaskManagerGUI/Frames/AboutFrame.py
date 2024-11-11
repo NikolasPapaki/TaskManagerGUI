@@ -10,7 +10,7 @@ class AboutFrame(ctk.CTkFrame):
         self.label.pack(pady=20)
 
         # App Information
-        self.app_name = "Nikolas App"
+        self.app_name = "Task Manager"
         self.version = VERSION
         self.last_updated = "November 11, 2024"
         self.description = "This app allows users to manage and run tasks efficiently."

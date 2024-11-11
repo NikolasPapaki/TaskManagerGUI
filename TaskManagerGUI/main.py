@@ -6,11 +6,11 @@ class MyApp(ctk.CTk):
         super().__init__()
 
         # Set theme and mode
-        ctk.set_default_color_theme("blue")
+        ctk.set_default_color_theme("dark-blue")
 
 
         self.title("Task Manager")
-        self.geometry("1200x1000")
+        self.geometry("1280x720")
 
         # Create an instance of ApplicationInterface
         self.sidebar = ApplicationInterface(self)
