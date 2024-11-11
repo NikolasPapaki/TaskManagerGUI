@@ -6,7 +6,7 @@ import sys
 import subprocess
 import threading
 
-VERSION = "v2.2.0"
+VERSION = "v3.0.0"
 
 class Update_module:
     def __init__(self):

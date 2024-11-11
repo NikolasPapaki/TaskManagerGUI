@@ -12,12 +12,14 @@ class AboutFrame(ctk.CTkFrame):
         # App Information
         self.app_name = "Nikolas App"
         self.version = VERSION
-        self.last_updated = "November 1, 2024"
+        self.last_updated = "November 11, 2024"
         self.description = "This app allows users to manage and run tasks efficiently."
         self.features = [
             "Feature 1: Task Creation",
             "Feature 2: Task execution",
-            "Featrue 3: Run a Jenkins Pipeline"
+            "Feature 3: Run a Jenkins Pipeline",
+            "Feature 4: Call an API",
+            "Feature 5: Add an oracle error stack and files will be opened in vscode"
         ]
         self.developer_name = "Nikolas Papaki"
         self.developer_email = "nikolaspapakis@hotmail.com"

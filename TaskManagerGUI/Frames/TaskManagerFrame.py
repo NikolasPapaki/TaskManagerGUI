@@ -7,6 +7,14 @@ import datetime
 from custom_widgets import CustomInputDialog
 
 
+def load_logs():
+    """Load existing logs from the log file."""
+    if os.path.exists("task_logs.json"):
+        with open("task_logs.json", "r") as log_file:
+            return json.load(log_file)
+    return []
+
+
 class TaskManagerFrame(ctk.CTkFrame):
     ORDER = 2
 
@@ -14,6 +22,7 @@ class TaskManagerFrame(ctk.CTkFrame):
         super().__init__(parent)
         self.parent = parent
 
+        self.logs =  load_logs()
         # Frame title
         title_label = ctk.CTkLabel(self, text="Task Manager", font=("Arial", 24))
         title_label.pack(pady=10)
@@ -35,7 +44,7 @@ class TaskManagerFrame(ctk.CTkFrame):
         command_label = ctk.CTkLabel(self.configuration_frame, text="Commands:")
         command_label.pack(pady=(5, 0), padx=10, anchor=tk.W)
 
-        self.command_tree = ttk.Treeview(self.configuration_frame, columns=("Commands"), show='headings', height=6)
+        self.command_tree = ttk.Treeview(self.configuration_frame, columns="Commands", show='headings', height=6)
         self.command_tree.heading("Commands", text="Commands")
         self.command_tree.pack(pady=5, padx=10, fill=tk.BOTH, expand=True)
 
@@ -85,24 +94,16 @@ class TaskManagerFrame(ctk.CTkFrame):
             "old_value": old_value,
             "new_value": new_value
         }
-        print(log_entry)
 
-        # Load existing logs
-        logs = self.load_logs()
 
         # Append the new log entry
-        logs.append(log_entry)
+        self.logs.append(log_entry)
+        self.save_logs()
 
+    def save_logs(self):
         # Save the updated logs back to the file
         with open("task_logs.json", "w") as log_file:
-            json.dump(logs, log_file, indent=4)
-
-    def load_logs(self):
-        """Load existing logs from the log file."""
-        if os.path.exists("task_logs.json"):
-            with open("task_logs.json", "r") as log_file:
-                return json.load(log_file)
-        return []
+            json.dump(self.logs, log_file, indent=4)
 
     def load_tasks(self):
         """Load tasks from the JSON file and populate the listbox."""
@@ -208,6 +209,8 @@ class TaskManagerFrame(ctk.CTkFrame):
                     # Log action
                     if new_command != current_command:
                         self.log_action("Updated command", self.task_listbox.get(selected_index[0]), old_value=current_command, new_value=new_command)
+        else:
+            messagebox.showwarning("Selection Error", "Please select a command to edit.")
 
     def remove_command(self):
         """Remove the selected command from the Treeview and update the task in the JSON file."""
@@ -331,6 +334,8 @@ class TaskManagerFrame(ctk.CTkFrame):
             self.task_name_var.set("")
             self.command_tree.delete(*self.command_tree.get_children())  # Clear Treeview
             self.log_action("Deleted task", task_name)
+        else:
+            messagebox.showwarning("Selection Error", "Please select a task to delete.")
 
     def remove_task(self, task_name):
         """Remove the task from the JSON file."""
