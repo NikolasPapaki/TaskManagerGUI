@@ -9,7 +9,7 @@ import os
 import base64
 
 class ApiRequestFrame(ctk.CTkFrame):
-    ORDER = 5
+    ORDER = 6
 
     def __init__(self, parent):
         super().__init__(parent)

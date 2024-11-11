@@ -10,7 +10,7 @@ from cryptography.fernet import Fernet
 
 class JenkinsFrame(ctk.CTkFrame):
     HISTORY_FILE = "job_history.json"  # File to store job history
-    ORDER = 4
+    ORDER = 5
     def __init__(self, parent):
         super().__init__(parent)
 

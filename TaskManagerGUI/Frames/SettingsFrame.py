@@ -5,6 +5,27 @@ import os
 from cryptography.fernet import Fernet
 from Update_module import *  # Assuming this import is already correct for your updater module
 
+
+def load_settings():
+    if os.path.exists("settings.json"):
+        with open("settings.json", "r") as file:
+            return json.load(file)
+    return {}
+
+
+def load_or_generate_key():
+    """Load the encryption key from a file or generate a new one if not found."""
+    key_file = ".secret.key"
+    if os.path.exists(key_file):
+        with open(key_file, "rb") as file:
+            return file.read()
+    else:
+        key = Fernet.generate_key()
+        with open(key_file, "wb") as file:
+            file.write(key)
+        return key
+
+
 class SettingsFrame(ctk.CTkFrame):
     ORDER = 98
 
@@ -12,10 +33,10 @@ class SettingsFrame(ctk.CTkFrame):
         super().__init__(parent)
         self.updater = Update_module()
 
-        self.settings = self.load_settings()
+        self.settings = load_settings()
 
         # Generate or load the encryption key (this key should be kept secret or stored securely)
-        self.key = self.load_or_generate_key()
+        self.key = load_or_generate_key()
         self.cipher_suite = Fernet(self.key)
 
         # Title frame
@@ -31,7 +52,7 @@ class SettingsFrame(ctk.CTkFrame):
         body_frame.pack(pady=(10, 5), padx=10, fill="x")
 
         # Theme toggle (Light/Dark mode)
-        self.theme_switch = ctk.CTkSwitch(body_frame, text="Dark Mode", command=self.change_color_mode)
+        self.theme_switch = ctk.CTkSwitch(body_frame, text="Dark Mode", command=self.change_theme_mode)
         self.theme_switch.pack(pady=10, anchor="w", padx=20)
 
         # Credentials frame
@@ -40,7 +61,7 @@ class SettingsFrame(ctk.CTkFrame):
 
         # Credential label positioned above the entries
         credential_label = ctk.CTkLabel(credential_frame, text="Credentials:", font=("Arial", 12))
-        credential_label.pack(pady=10, padx=10, side="top", anchor='w', fill='x')
+        credential_label.pack(pady=10, padx=10, anchor='w')
 
         # Username Entry
         self.username_entry_frame = ctk.CTkFrame(credential_frame)
@@ -51,71 +72,38 @@ class SettingsFrame(ctk.CTkFrame):
 
         # Password Entry (hidden, will be encrypted before saving)
         self.password_entry_frame = ctk.CTkFrame(credential_frame)
-        self.password_entry_frame.pack(pady=5, padx=20, fill="x")
+        self.password_entry_frame.pack(pady=(5, 15), padx=20,
+                                       fill="x")  # Added more padding below the password entry frame
         ctk.CTkLabel(self.password_entry_frame, text="Password:").pack(side="left", anchor="w", padx=10)
         self.password_entry = ctk.CTkEntry(self.password_entry_frame, width=300, show="*")
         self.password_entry.pack(side="left", pady=5)
 
+        # Debugger Root Directory frame
+        debugger_frame = ctk.CTkFrame(body_frame)
+        debugger_frame.pack(pady=(10, 5), padx=10, fill="x")
+
+        # Debugger Root Directory label
+        debugger_label = ctk.CTkLabel(debugger_frame, text="Debugger Root Directory:", font=("Arial", 12))
+        debugger_label.pack(pady=10, padx=10, anchor='w')
+
+        # Debugger Root Directory Entry
+        self.debugger_root_entry_frame = ctk.CTkFrame(debugger_frame)
+        self.debugger_root_entry_frame.pack(pady=(5,15), padx=20, fill="x")
+        ctk.CTkLabel(self.debugger_root_entry_frame, text="Path").pack(side="left", anchor="w", padx=10)
+        self.debugger_root_entry = ctk.CTkEntry(self.debugger_root_entry_frame, width=300)
+        self.debugger_root_entry.pack(side="left", pady=5, anchor="w", expand=True)
+
         # Save button
-        self.save_button = ctk.CTkButton(body_frame, text="Save Settings", command=self.save_credential_data)
+        self.save_button = ctk.CTkButton(body_frame, text="Save Settings", command=self.save_all_settings)
         self.save_button.pack(pady=20)
 
-        # Load settings and set current theme
-        settings = self.load_settings()
-        current_theme = settings.get("theme", "dark")  # Default to "dark" if no theme is found
-        ctk.set_appearance_mode(current_theme)
-        self.theme_switch.select() if current_theme.lower() == "dark" else self.theme_switch.deselect()
-
-        # Retrieve saved credentials if any
+        self.load_theme_mode()
         self.load_credential_data()
+        self.load_debugger_directory()
 
-    def load_or_generate_key(self):
-        """Load the encryption key from a file or generate a new one if not found."""
-        key_file = ".secret.key"
-        if os.path.exists(key_file):
-            with open(key_file, "rb") as file:
-                return file.read()
-        else:
-            key = Fernet.generate_key()
-            with open(key_file, "wb") as file:
-                file.write(key)
-            return key
-
-    def save_credential_data(self):
-        """Save the username and encrypted password to settings.json."""
-        username = self.username_entry.get().strip()
-        password = self.password_entry.get().strip()
-
-        # Encrypt the password
-        encrypted_password = self.cipher_suite.encrypt(password.encode()).decode()
-
-        # If username or password is in the entryboxes save it to the settings.json else
-        if password:
-            self.settings["password"] =encrypted_password
-        else:
-            if "password" in self.settings:
-                del self.settings["password"]
-
-        if username:
-            self.settings["username"] = username
-        else:
-            if "username" in self.settings:
-                del self.settings["username"]
-
-        self.save_settings()
-
-        # Confirmation message
-        messagebox.showinfo("Settings Saved", "Your settings have been saved successfully.")
-
-    def save_settings(self):
+    def save_settings_in_file(self):
         with open("settings.json", "w") as file:
             json.dump(self.settings, file, indent=4)
-
-    def load_settings(self):
-        if os.path.exists("settings.json"):
-            with open("settings.json", "r") as file:
-                return json.load(file)
-        return {}
 
     def load_credential_data(self):
         """Load the username and encrypted password from settings.json and decrypt the password."""
@@ -127,33 +115,77 @@ class SettingsFrame(ctk.CTkFrame):
             decrypted_password = self.cipher_suite.decrypt(encrypted_password.encode()).decode()
             self.password_entry.insert(0, decrypted_password)
 
-    def change_color_mode(self):
+    def set__credential_data_settings(self):
+        """Save the username and encrypted password to settings.json."""
+        username = self.username_entry.get().strip()
+        password = self.password_entry.get().strip()
+
+        if password:
+            # Encrypt the password
+            encrypted_password = self.cipher_suite.encrypt(password.encode()).decode()
+            self.settings["password"] = encrypted_password
+        else:
+            if "password" in self.settings:
+                del self.settings["password"]
+
+        if username:
+            self.settings["username"] = username
+        else:
+            if "username" in self.settings:
+                del self.settings["username"]
+
+    def load_theme_mode(self):
+        # Load settings and set current theme
+        settings = load_settings()
+        current_theme = settings.get("theme", "dark")  # Default to "dark" if no theme is found
+        ctk.set_appearance_mode(current_theme)
+        self.theme_switch.select() if current_theme.lower() == "dark" else self.theme_switch.deselect()
+
+
+    def change_theme_mode(self):
         new_theme = "dark" if self.theme_switch.get() else "light"
         ctk.set_appearance_mode(new_theme)
         self.settings["theme"] = new_theme
-        self.save_settings()
+        self.save_settings_in_file()
 
-    def check_for_updates(self):
-        needs_update, latest_version = self.updater.check_for_updates()
+    # def check_for_updates(self):
+    #     needs_update, latest_version = self.updater.check_for_updates()
+    #
+    #     if needs_update:
+    #         user_response = messagebox.askyesno(
+    #             "Update Available",
+    #             f"A new version ({latest_version}) is available. Would you like to download the update?"
+    #         )
+    #         if user_response:
+    #             self.download_update()
+    #     else:
+    #         messagebox.showinfo("Up to Date", "Your application is already up to date.")
+    #
+    # def download_update(self):
+    #     try:
+    #         self.updater.update_application()
+    #     except Exception as e:
+    #         messagebox.showerror("Error!", "Error checking for updates.")
+    #         print(f"Error: {e}")
 
-        if needs_update:
-            user_response = messagebox.askyesno(
-                "Update Available",
-                f"A new version ({latest_version}) is available. Would you like to download the update?"
-            )
-            if user_response:
-                self.download_update()
+    def load_debugger_directory(self):
+        settings = self.settings
+        if "debugger_root_directory" in settings:
+            self.debugger_root_entry.insert(0, settings["debugger_root_directory"])
+
+    def set_debugger_directory_settings(self):
+        # Save the debugger root directory setting
+        debugger_root = self.debugger_root_entry.get().strip()
+        if debugger_root:
+            self.settings["debugger_root_directory"] = debugger_root
         else:
-            messagebox.showinfo("Up to Date", "Your application is already up to date.")
+            if "debugger_root_directory" in self.settings:
+                del self.settings["debugger_root_directory"]
 
-    def download_update(self):
-        try:
-            self.updater.update_application()
-        except Exception as e:
-            messagebox.showerror("Error!", "Error checking for updates.")
-            print(f"Error: {e}")
+    def save_all_settings(self):
+        self.set_debugger_directory_settings()
+        self.set__credential_data_settings()
+        self.save_settings_in_file()
 
-    def reset_settings(self):
-        print("Settings have been reset to defaults.")
-        self.theme_switch.deselect()
-        self.save_settings("theme", "light")
+        # Confirmation message
+        messagebox.showinfo("Settings Saved", "Your settings have been saved successfully.")
