@@ -1,12 +1,11 @@
 from logging import exception
-
 import customtkinter as ctk
 import subprocess
 import threading
 import tkinter.messagebox as messagebox
 import json
 import os
-
+import time
 
 def load_tasks():
     """Load tasks from the JSON file and return a list of tasks."""
@@ -35,7 +34,18 @@ class TaskRunnerFrame(ctk.CTkFrame):
         # Load tasks from the JSON file
         self.tasks = load_tasks()
 
-        # Create an inner frame to hold the buttons
+        # Create a label for the search entry
+        search_label = ctk.CTkLabel(self, text="Search tasks by name:", font=("Arial", 14))
+        search_label.pack(pady=5, padx=10, anchor="w")
+
+        # Create a search bar
+        self.search_var = ctk.StringVar()
+        self.search_var.trace_add("write", self.on_search_input)
+
+        search_entry = ctk.CTkEntry(self, textvariable=self.search_var, placeholder_text="Search tasks")
+        search_entry.pack(pady=10, padx=10, fill=ctk.X)
+
+        # Create an inner frame to hold the task buttons
         self.button_frame = ctk.CTkFrame(self)
         self.button_frame.pack(fill=ctk.BOTH, expand=True, padx=10, pady=10)
 
@@ -47,11 +57,42 @@ class TaskRunnerFrame(ctk.CTkFrame):
         # Dynamically create buttons for each task
         self.create_task_buttons()
 
+        # Debounce mechanism
+        self.last_search_time = time.time()
+        self.debounce_delay = 0.3  # 300 ms delay after the user stops typing
+
+    def on_search_input(self, *args):
+        """Handle the search input with debounce."""
+        current_time = time.time()
+        if current_time - self.last_search_time >= self.debounce_delay:
+            self.last_search_time = current_time
+            self.update_task_buttons()
+        else:
+            # If the user is typing too fast, just wait
+            pass
+
     def create_task_buttons(self):
-        for task in self.tasks:
+        """Create task buttons based on the current tasks and search filter."""
+        for widget in self.button_frame.winfo_children():
+            widget.destroy()
+
+        search_text = self.search_var.get().lower()
+
+        # Use a background thread to update buttons
+        threading.Thread(target=self.create_buttons_thread, args=(search_text,)).start()
+
+    def create_buttons_thread(self, search_text):
+        """Create buttons in a background thread to avoid blocking the UI."""
+        filtered_tasks = [task for task in self.tasks if search_text in task["name"].lower()]
+
+        # Create the buttons in the UI thread
+        self.after(0, self.update_buttons_in_ui, filtered_tasks)
+
+    def update_buttons_in_ui(self, filtered_tasks):
+        """Update the task buttons in the main UI thread."""
+        for task in filtered_tasks:
             task_name = task["name"]
             commands = task["commands"]
-
             if commands:
                 button = ctk.CTkButton(
                     self.button_frame,
@@ -60,19 +101,21 @@ class TaskRunnerFrame(ctk.CTkFrame):
                 )
                 button.pack(pady=5, padx=10, fill=ctk.X)
 
+    def update_task_buttons(self):
+        """Update the displayed task buttons based on search criteria."""
+        self.create_task_buttons()
 
     def run_commands(self, args, name):
-        threading.Thread(target=self.run_commands_thread, args=[args, name,] ).start()
+        threading.Thread(target=self.run_commands_thread, args=[args, name]).start()
 
     def run_commands_thread(self, commands, name):
-        """Patch the database by running a series of subprocesses with progress tracking."""
+        """Run a series of subprocesses with progress tracking."""
         self.disable_buttons()
 
         try:
             for i, command in enumerate(commands):
                 try:
                     result = subprocess.run(command, shell=True, check=True)
-
                     self.update_progress_bar(i + 1, len(commands))
 
                 except subprocess.CalledProcessError as e:
@@ -81,27 +124,24 @@ class TaskRunnerFrame(ctk.CTkFrame):
 
                 except FileNotFoundError:
                     messagebox.showerror("Error", f"Command '{command}' not found.")
-                    break  # Stop processing on error
+                    break
 
                 except Exception as e:
                     messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
                     break
 
             else:
-                # Show a completion message only if all commands succeed
                 messagebox.showinfo("Completed", f"Task {name} has been completed successfully.")
 
         finally:
-            # Finalize progress bar and re-enable buttons regardless of errors
             self.update_progress_bar(len(commands), len(commands))
             self.enable_buttons()
 
     def update_progress_bar(self, completed, total):
         if total > 0:
-            progress = completed / total  # Calculate progress as a fraction
-            self.progress_bar.set(progress)  # Update the progress bar
+            progress = completed / total
+            self.progress_bar.set(progress)
             self.update_idletasks()
-
 
     def disable_buttons(self):
         for button in self.button_frame.winfo_children():
