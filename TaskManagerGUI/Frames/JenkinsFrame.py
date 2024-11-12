@@ -3,62 +3,48 @@ import json
 import requests
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 import customtkinter as ctk
 from cryptography.fernet import Fernet
-from tkinter import messagebox
+
+
+def load_settings():
+    """Load settings from the JSON file, or return an empty dictionary if the file does not exist."""
+    if os.path.exists("settings.json"):
+        with open("settings.json", "r") as file:
+            return json.load(file)
+    return {}
+
+
+def load_key():
+    """Load the encryption key from a file or return None if not found."""
+    key_file = ".secret.key"
+    if os.path.exists(key_file):
+        with open(key_file, "rb") as file:
+            return file.read()
+    else:
+        return None
+
 
 class JenkinsFrame(ctk.CTkFrame):
+    ORDER = 5
     def __init__(self, master):
         super().__init__(master)
         self.master = master
-        self.settings = self.load_settings()
-        self.history_file = "build_history.json"
-        self.build_history = [
-            {
-                'build_number': '123',
-                'url': 'https://example.com/job/project/123/',
-                'logs': 'Log for build 123. Here is some console output...\n\nNext build: https://example.com/job/project/124/',
-                'children': [
-                    {
-                        'build_number': '124',
-                        'url': 'https://example.com/job/project/124/',
-                        'logs': 'Log for build 124. More console output...\n\nNext build: https://example.com/job/project/125/',
-                        'children': [
-                            {
-                                'build_number': '126',
-                                'url': 'https://example.com/job/project/125/',
-                                'logs': 'Log for build 126. Final logs here...',
-                                'children': []
-                            }
-                        ]
-                    },
-                    {
-                        'build_number': '125',
-                        'url': 'https://example.com/job/project/124/',
-                        'logs': 'Log for build 125. More console output...\n\nNext build: https://example.com/job/project/125/',
-                        'children': [
-                            {
-                                'build_number': '127',
-                                'url': 'https://example.com/job/project/125/',
-                                'logs': 'Log for build 127. Final logs here...',
-                                'children': []
-                            }
-                        ]
-                    }
-                ]
-            }
-        ]
+        self.settings = load_settings()
+        self.build_history = []
 
         # Store the expanded state for each item
         self.expanded_state = {}
 
         # Load the encryption key
-        self.key = self.load_key()
+        self.key = load_key()
         if self.key:
             self.cipher_suite = Fernet(self.key)
 
-        # Decrypt password
-        self.password = self.decrypt_password(self.settings.get("password", ""))
+        # Credentials
+        self.username = None
+        self.password = None
 
         # URL entry box
         self.url_entry = ctk.CTkEntry(self, placeholder_text="Enter Jenkins build URL")
@@ -76,29 +62,18 @@ class JenkinsFrame(ctk.CTkFrame):
 
         # Bind item click event to expand/collapse
         self.tree.bind("<Button-1>", self.on_treeview_item_click)
-        # Bind double-click event to show logs
-        self.tree.bind("<Double-1>", self.on_treeview_item_double_click)
+        # Bind right-click event to show context menu
+        self.tree.bind("<Button-3>", self.show_context_menu)
+
+        # Create a context menu
+        self.context_menu = tk.Menu(self, tearoff=0)
+        self.context_menu.add_command(label="Show Logs", command=self.show_logs)
 
         # Textbox to show logs
         self.log_textbox = ctk.CTkTextbox(self, wrap="word", height=10)
         self.log_textbox.pack(pady=10, fill="both", expand=True)
-        self._update_treeview()
 
-    def load_settings(self):
-        """Load settings from the JSON file, or return an empty dictionary if the file does not exist."""
-        if os.path.exists("settings.json"):
-            with open("settings.json", "r") as file:
-                return json.load(file)
-        return {}
-
-    def load_key(self):
-        """Load the encryption key from a file or return None if not found."""
-        key_file = ".secret.key"
-        if os.path.exists(key_file):
-            with open(key_file, "rb") as file:
-                return file.read()
-        else:
-            return None
+        self.load_credential_data()
 
     def decrypt_password(self, encrypted_password):
         """Decrypt the encrypted password using the loaded key."""
@@ -118,25 +93,22 @@ class JenkinsFrame(ctk.CTkFrame):
             messagebox.showerror("Error", "Please provide the build URL")
             return
 
-        # Get username from settings and password (decrypted)
-        username = self.settings.get("username", "")
-        password = self.password
 
-        if not username or not password:
+        if not self.username or not self.password:
             messagebox.showerror("Error", "Credentials have not been defined in the settings.")
             return
 
         # Start log retrieval for the parent build
         self.build_history = []  # Reset history
-        self._retrieve_build_logs(build_url, parent=None, username=username, password=password)
+        self._retrieve_build_logs(build_url, parent=None)
 
         # Update Treeview
         self._update_treeview()
 
-    def _retrieve_build_logs(self, build_url, parent, username, password):
+    def _retrieve_build_logs(self, build_url, parent):
         try:
             # Make a request to retrieve the logs using authentication
-            response = requests.get(f"{build_url}/consoleText", auth=(username, password))
+            response = requests.get(f"{build_url}/consoleText", auth=(self.username, self.password))
             response.raise_for_status()
             logs = response.text
 
@@ -160,8 +132,7 @@ class JenkinsFrame(ctk.CTkFrame):
             # Look for URLs of subsequent builds in the logs
             subsequent_build_url = self._extract_subsequent_build_url(logs)
             if subsequent_build_url:
-                self._retrieve_build_logs(subsequent_build_url, parent=build_entry, username=username,
-                                          password=password)
+                self._retrieve_build_logs(subsequent_build_url, parent=build_entry)
 
         except requests.RequestException as e:
             print(f"Error retrieving logs for {build_url}: {e}")
@@ -209,25 +180,38 @@ class JenkinsFrame(ctk.CTkFrame):
                     self.tree.item(item_id, open=True)
                     self.expanded_state[item_id] = True
 
-    def on_treeview_item_double_click(self, event):
-        """Handle double-click event to show logs for the selected build."""
-        item_id = self.tree.focus()
+    def show_context_menu(self, event):
+        """Show context menu on right-click."""
+        # Select the item that was right-clicked
+        item_id = self.tree.identify_row(event.y)
         if item_id:
-            # Find the build that corresponds to the item_id
-            build = self._find_build_by_item(self.build_history, item_id)
-            if build:
-                # Display the logs in the log_textbox
-                self.log_textbox.delete(1.0, tk.END)
-                self.log_textbox.insert(tk.END, build['logs'])
+            self.tree.selection_set(item_id)  # Set the selected item
+            self.context_menu.post(event.x_root, event.y_root)
+
+    def show_logs(self):
+        """Show logs for the selected build."""
+        item_id = self.tree.selection()[0]
+        build = self._find_build_by_item(self.build_history, item_id)
+        if build:
+            # Display the logs in the log_textbox
+            self.log_textbox.delete(1.0, tk.END)
+            self.log_textbox.insert(tk.END, build['logs'])
 
     def _find_build_by_item(self, build_list, item_id):
         """Find the build data by treeview item ID."""
         for build in build_list:
-            # Check if the current build's item ID matches the selected item
-            if item_id == build.get('treeview_item_id'):
+            if build.get('treeview_item_id') == item_id:
                 return build
-            # Check children recursively
-            child_build = self._find_build_by_item(build['children'], item_id)
-            if child_build:
-                return child_build
+            if build['children']:
+                result = self._find_build_by_item(build['children'], item_id)
+                if result:
+                    return result
         return None
+
+    def load_credential_data(self):
+        """Load the username and encrypted password from settings.json and decrypt the password."""
+        settings = self.settings
+        if "username" in settings:
+            self.username = self.settings.get("username")
+        if "password" in settings:
+            self.password = self.decrypt_password(self.settings.get("password"))
