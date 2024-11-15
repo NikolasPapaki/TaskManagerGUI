@@ -46,6 +46,17 @@ class JenkinsFrame(ctk.CTkFrame):
         self.username = None
         self.password = None
 
+        # Add the toggle switch for SSL verification
+        self.ssl_verify = ctk.BooleanVar(value=False)  # Default to verifying SSL certificates
+        self.ssl_switch = ctk.CTkSwitch(
+            self,
+            text="Verify Server Certificate",
+            variable=self.ssl_verify,
+            onvalue=True,
+            offvalue=False
+        )
+        self.ssl_switch.pack(pady=10,anchor='e')
+
         # URL entry box
         self.url_entry = ctk.CTkEntry(self, placeholder_text="Enter Jenkins build URL")
         self.url_entry.pack(pady=10, fill='x')
@@ -93,22 +104,28 @@ class JenkinsFrame(ctk.CTkFrame):
             messagebox.showerror("Error", "Please provide the build URL")
             return
 
-
         if not self.username or not self.password:
             messagebox.showerror("Error", "Credentials have not been defined in the settings.")
             return
 
+        # Check the SSL verification state
+        verify_ssl = self.ssl_verify.get()
+
         # Start log retrieval for the parent build
         self.build_history = []  # Reset history
-        self._retrieve_build_logs(build_url, parent=None)
+        self._retrieve_build_logs(build_url, parent=None, verify_ssl=verify_ssl)
 
         # Update Treeview
         self._update_treeview()
 
-    def _retrieve_build_logs(self, build_url, parent):
+    def _retrieve_build_logs(self, build_url, parent, verify_ssl):
         try:
             # Make a request to retrieve the logs using authentication
-            response = requests.get(f"{build_url}/consoleText", auth=(self.username, self.password))
+            response = requests.get(
+                f"{build_url}/consoleText",
+                auth=(self.username, self.password),
+                verify=verify_ssl  # Use the SSL verification state from the toggle
+            )
             response.raise_for_status()
             logs = response.text
 
@@ -130,18 +147,19 @@ class JenkinsFrame(ctk.CTkFrame):
                 self.build_history.append(build_entry)
 
             # Look for URLs of subsequent builds in the logs
-            subsequent_build_url = self._extract_subsequent_build_url(logs)
-            if subsequent_build_url:
-                self._retrieve_build_logs(subsequent_build_url, parent=build_entry)
+            subsequent_build_urls = self._extract_subsequent_build_urls(logs)
+            for subsequent_build_url in subsequent_build_urls:
+                self._retrieve_build_logs(subsequent_build_url, parent=build_entry, verify_ssl=verify_ssl)
 
         except requests.RequestException as e:
             print(f"Error retrieving logs for {build_url}: {e}")
 
-    def _extract_subsequent_build_url(self, logs):
-        # Regex or logic to find subsequent build URLs in the console logs
+    def _extract_subsequent_build_urls(self, logs):
+        """Extract all subsequent build URLs from the logs."""
         import re
-        match = re.search(r"(https?://[^\s]+/job/[^\s]+/\d+)", logs)
-        return match.group(0) if match else None
+        # Regular expression to match "Remote build URL" followed by any URL
+        matches = re.findall(r"Remote build URL: (https?://[^\s]+)", logs)
+        return matches  # Returns a list of all matched URLs
 
     def _update_treeview(self):
         # Clear the treeview
