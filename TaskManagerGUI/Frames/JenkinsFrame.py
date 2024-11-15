@@ -80,10 +80,6 @@ class JenkinsFrame(ctk.CTkFrame):
         self.context_menu = tk.Menu(self, tearoff=0)
         self.context_menu.add_command(label="Show Logs", command=self.show_logs)
 
-        # Textbox to show logs
-        self.log_textbox = ctk.CTkTextbox(self, wrap="word", height=10)
-        self.log_textbox.pack(pady=10, fill="both", expand=True)
-
         self.load_credential_data()
 
     def decrypt_password(self, encrypted_password):
@@ -207,13 +203,43 @@ class JenkinsFrame(ctk.CTkFrame):
             self.context_menu.post(event.x_root, event.y_root)
 
     def show_logs(self):
-        """Show logs for the selected build."""
+        """Show logs for the selected build in a new window."""
         item_id = self.tree.selection()[0]
         build = self._find_build_by_item(self.build_history, item_id)
         if build:
-            # Display the logs in the log_textbox
-            self.log_textbox.delete(1.0, tk.END)
-            self.log_textbox.insert(tk.END, build['logs'])
+            # Create a new window to display the logs
+            log_window = ctk.CTkToplevel(self)
+            log_window.title(f"Logs for Build {build['build_number']}")
+
+            # Set the window size (width x height)
+            log_window.geometry("800x600")  # Set to desired size
+
+            # Get the position of the main window
+            main_window_x = self.winfo_rootx()
+            main_window_y = self.winfo_rooty()
+
+            # Get the dimensions of the main window
+            main_window_width = self.winfo_width()
+            main_window_height = self.winfo_height()
+
+            # Calculate the position for the new window (centered)
+            new_window_x = main_window_x + (main_window_width // 2) - 400  # 400 is half of 800 (log window width)
+            new_window_y = main_window_y + (main_window_height // 2) - 300  # 300 is half of 600 (log window height)
+
+            # Set the position of the new window
+            log_window.geometry(f"800x600+{new_window_x}+{new_window_y}")
+
+            # Ensure the new window grabs events and disables the main window
+            log_window.grab_set()
+
+            # Create a textbox in the new window
+            log_textbox = ctk.CTkTextbox(log_window, wrap="word", height=20)
+            log_textbox.pack(pady=10, fill="both", expand=True)
+
+            # Insert the logs into the textbox
+            log_textbox.insert(tk.END, build['logs'])
+            log_textbox.configure(state=tk.DISABLED)  # Make it read-only
+
 
     def _find_build_by_item(self, build_list, item_id):
         """Find the build data by treeview item ID."""
