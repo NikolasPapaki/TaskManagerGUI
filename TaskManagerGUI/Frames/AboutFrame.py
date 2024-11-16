@@ -17,8 +17,8 @@ class AboutFrame(ctk.CTkFrame):
         self.features = [
             "Feature 1: Task Creation",
             "Feature 2: Task execution",
-            "Feature 3: Run a Jenkins Pipeline",
-            "Feature 4: Call an API",
+            "Feature 3: Retrieve Jenkins logs",
+            "Feature 4: Call an API (Under development)",
             "Feature 5: Add an oracle error stack and files will be opened in vscode"
         ]
         self.developer_name = "Nikolas Papaki"
