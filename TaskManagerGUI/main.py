@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from Interface import ApplicationInterface
 
+
 class MyApp(ctk.CTk):
     def __init__(self):
         super().__init__()

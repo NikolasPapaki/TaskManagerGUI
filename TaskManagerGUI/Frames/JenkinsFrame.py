@@ -1,11 +1,22 @@
 import os
 import json
-import requests
+import sys
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 import customtkinter as ctk
 from cryptography.fernet import Fernet
+import certifi
+
+# Use the bundled certifi file if running as an executable
+if getattr(sys, 'frozen', False):  # Check if running as a PyInstaller bundle
+    certifi_path = os.path.join(sys._MEIPASS, 'certifi', 'cacert.pem')
+else:  # Fallback for normal Python execution
+    certifi_path = certifi.where()
+
+# Set the path for requests
+import requests
+requests.utils.DEFAULT_CA_BUNDLE_PATH = certifi_path
 
 
 def load_settings():

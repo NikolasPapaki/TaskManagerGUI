@@ -1,12 +1,25 @@
 import tkinter as tk
 import customtkinter as ctk
-import requests
 from tkinter import messagebox
 import json
 import threading
 from tkinter import ttk
 import os
 import base64
+
+import certifi
+import sys
+
+# Use the bundled certifi file if running as an executable
+if getattr(sys, 'frozen', False):  # Check if running as a PyInstaller bundle
+    certifi_path = os.path.join(sys._MEIPASS, 'certifi', 'cacert.pem')
+else:  # Fallback for normal Python execution
+    certifi_path = certifi.where()
+
+# Set the path for requests
+import requests
+requests.utils.DEFAULT_CA_BUNDLE_PATH = certifi_path
+
 
 class ApiRequestFrame(ctk.CTkFrame):
     ORDER = 6

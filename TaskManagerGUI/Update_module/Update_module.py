@@ -1,19 +1,41 @@
 import os
-import requests
 import shutil
 import zipfile
 import sys
 import subprocess
+import certifi
 
-EXECUTABLE_NAME = "python main.py"
+# Use the bundled certifi file if running as an executable
+if getattr(sys, 'frozen', False):  # Check if running as a PyInstaller bundle
+    certifi_path = os.path.join(sys._MEIPASS, 'certifi', 'cacert.pem')
+else:  # Fallback for normal Python execution
+    certifi_path = certifi.where()
+
+# Set the path for requests
+import requests
+requests.utils.DEFAULT_CA_BUNDLE_PATH = certifi_path
+
+# EXECUTABLE_NAME = "python main.py"
+EXECUTABLE_NAME = "TaskManager.exe"
 VERSION = "v3.0.0"
 
-def restart_application_static(executable_name):
-    if os.name == 'nt':
-        subprocess.Popen(executable_name, creationflags=subprocess.DETACHED_PROCESS)
-    else:
-        subprocess.Popen(executable_name)
-    sys.exit(0)
+def restart_application_executable():
+    """
+    Restarts the current PyInstaller-built executable.
+    """
+    try:
+        executable_path = sys.executable  # Path to the current executable
+        if os.name == 'nt':
+            # Windows-specific: detach the process
+            subprocess.Popen([executable_path], creationflags=subprocess.DETACHED_PROCESS)
+        else:
+            # Unix-based systems
+            subprocess.Popen([executable_path])
+    except Exception as e:
+        print(f"Error while restarting the application: {e}")
+    finally:
+        # Exit the current instance
+        sys.exit(0)
 
 class Update_module:
     def __init__(self):
