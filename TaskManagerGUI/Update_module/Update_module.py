@@ -4,9 +4,16 @@ import shutil
 import zipfile
 import sys
 import subprocess
-import threading
 
+EXECUTABLE_NAME = "python main.py"
 VERSION = "v3.0.0"
+
+def restart_application_static(executable_name):
+    if os.name == 'nt':
+        subprocess.Popen(executable_name, creationflags=subprocess.DETACHED_PROCESS)
+    else:
+        subprocess.Popen(executable_name)
+    sys.exit(0)
 
 class Update_module:
     def __init__(self):
@@ -14,7 +21,7 @@ class Update_module:
         self.repo_owner = 'NikolasPapaki'
         self.repo_name = 'TaskManagerGUI_app'
         self.download_dir = 'downloads'
-        self.executable_name = "TaskManager.exe"  # Name of the executable in the zip
+        self.executable_name = EXECUTABLE_NAME
         self.current_version = VERSION
         self.latest_release_url = f'https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases/latest'
 
@@ -66,10 +73,5 @@ class Update_module:
         self.extract_zip(zip_path)
         self.restart_application()
 
-
     def restart_application(self):
-        if os.name == 'nt':
-            subprocess.Popen(self.executable_name, creationflags=subprocess.DETACHED_PROCESS)
-        else:
-            subprocess.Popen(self.executable_name)
-        sys.exit(0)
+        restart_application(self.executable_name)

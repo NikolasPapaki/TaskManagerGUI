@@ -1,9 +1,9 @@
 import customtkinter as ctk
 from tkinter import messagebox
 import json
-import os
 from cryptography.fernet import Fernet
-from Update_module import *  # Assuming this import is already correct for your updater module
+from Update_module.Update_module import *
+
 
 
 def load_settings():
@@ -32,6 +32,7 @@ class SettingsFrame(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
         self.updater = Update_module()
+        self.parent = parent
 
         self.settings = load_settings()
 
@@ -54,6 +55,13 @@ class SettingsFrame(ctk.CTkFrame):
         # Theme toggle (Light/Dark mode)
         self.theme_switch = ctk.CTkSwitch(body_frame, text="Dark Mode", command=self.change_theme_mode)
         self.theme_switch.pack(pady=10, anchor="w", padx=20)
+
+        self.sidebar_position_switch = ctk.CTkSwitch(
+            body_frame,
+            text="Sidebar on Right",
+            command=self.change_sidebar_position
+        )
+        self.sidebar_position_switch.pack(pady=10, anchor="w", padx=20)
 
         # Credentials frame
         credential_frame = ctk.CTkFrame(body_frame)
@@ -98,6 +106,7 @@ class SettingsFrame(ctk.CTkFrame):
         self.save_button.pack(pady=20)
 
         self.load_theme_mode()
+        self.load_sidebar_position()
         self.load_credential_data()
         self.load_debugger_directory()
 
@@ -147,6 +156,29 @@ class SettingsFrame(ctk.CTkFrame):
         ctk.set_appearance_mode(new_theme)
         self.settings["theme"] = new_theme
         self.save_settings_in_file()
+
+    def load_sidebar_position(self):
+        """Load sidebar position from settings."""
+        sidebar_position = self.settings.get("sidebar_side", "left")  # Default to "left"
+        if sidebar_position == "right":
+            self.sidebar_position_switch.select()
+        else:
+            self.sidebar_position_switch.deselect()
+
+    def change_sidebar_position(self):
+        """Change sidebar position and save to settings."""
+        sidebar_position = "right" if self.sidebar_position_switch.get() else "left"
+        self.settings["sidebar_side"] = sidebar_position
+        self.save_settings_in_file()
+        restart_now = messagebox.askyesno(
+            "Restart Required",
+            "The sidebar position has been updated. Restart the application for the changes to take effect.\n\n"
+            "Would you like to restart now?"
+        )
+
+        if restart_now:
+            restart_application_static(EXECUTABLE_NAME)
+
 
     # def check_for_updates(self):
     #     needs_update, latest_version = self.updater.check_for_updates()

@@ -14,20 +14,22 @@ class ApplicationInterface:
         self.parent = parent
 
         # Load settings and set current theme
-        settings = self.load_settings()
-        current_theme = settings.get("theme", "dark")  # Default to "dark" if no theme is found
+        self.settings = self.load_settings()
+        current_theme = self.settings.get("theme", "dark")  # Default to "dark" if no theme is found
         ctk.set_appearance_mode(current_theme)
 
-        # Set a specific width for the sidebar (e.g., 250 pixels)
+        # Determine the position of the sidebar
+        self.sidebar_side = self.settings.get("sidebar_side", "left").lower()
         self.sidebar_width = 250
 
         # Create the sidebar frame with the specified width
         self.sidebar = ctk.CTkFrame(self.parent, width=self.sidebar_width)
-        self.sidebar.pack(side=ctk.LEFT, fill=ctk.Y)
 
         # Create the main content area to take the remaining space
         self.content_area = ctk.CTkFrame(self.parent)
-        self.content_area.pack(side=ctk.RIGHT, fill=ctk.BOTH, expand=True)
+
+        # Adjust the packing of sidebar and content area based on the sidebar side
+        self.update_sidebar_position()
 
         # Set the sidebar's minimum and maximum width to prevent resizing
         self.sidebar.pack_propagate(False)  # Prevent the frame from resizing to fit its contents
@@ -39,13 +41,23 @@ class ApplicationInterface:
         self.current_frame = None
         self.show_frame(HomeFrame)
 
-
     def load_settings(self):
         """Load settings from the JSON file, or return an empty dictionary if the file does not exist."""
         if os.path.exists("settings.json"):
             with open("settings.json", "r") as file:
                 return json.load(file)
         return {}
+
+    def update_sidebar_position(self):
+        """Update the packing order of the sidebar and content area."""
+        if self.sidebar_side == "left":
+            self.sidebar.pack(side=ctk.LEFT, fill=ctk.Y)
+            self.content_area.pack(side=ctk.RIGHT, fill=ctk.BOTH, expand=True)
+        elif self.sidebar_side == "right":
+            self.sidebar.pack(side=ctk.RIGHT, fill=ctk.Y)
+            self.content_area.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True)
+        else:
+            raise ValueError(f"Invalid value for sidebar_side: {self.sidebar_side}. Use 'left' or 'right'.")
 
     def create_sidebar_buttons(self):
         # Create a list to hold the button details
@@ -72,5 +84,4 @@ class ApplicationInterface:
         # Create a new frame and display it
         self.current_frame = frame_class(self.content_area)
         self.current_frame.pack(fill=ctk.BOTH, expand=True)
-
 

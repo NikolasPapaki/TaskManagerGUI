@@ -32,7 +32,41 @@ class JenkinsFrame(ctk.CTkFrame):
         super().__init__(master)
         self.master = master
         self.settings = load_settings()
-        self.build_history = []
+        self.build_history = [
+            {
+                'build_number': '123',
+                'url': 'https://example.com/job/project/123/',
+                'logs': 'Log for build 123. Here is some console output...\n\nNext build: https://example.com/job/project/124/',
+                'children': [
+                    {
+                        'build_number': '124',
+                        'url': 'https://example.com/job/project/124/',
+                        'logs': 'Log for build 124. More console output...\n\nNext build: https://example.com/job/project/125/',
+                        'children': [
+                            {
+                                'build_number': '126',
+                                'url': 'https://example.com/job/project/125/',
+                                'logs': 'Log for build 125. Final logs here...',
+                                'children': []
+                            }
+                        ]
+                    },
+                    {
+                        'build_number': '125',
+                        'url': 'https://example.com/job/project/124/',
+                        'logs': 'Log for build 124. More console output...\n\nNext build: https://example.com/job/project/125/',
+                        'children': [
+                            {
+                                'build_number': '127',
+                                'url': 'https://example.com/job/project/125/',
+                                'logs': 'Log for build 125. Final logs here...',
+                                'children': []
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
 
         # Store the expanded state for each item
         self.expanded_state = {}
@@ -81,6 +115,7 @@ class JenkinsFrame(ctk.CTkFrame):
         self.context_menu.add_command(label="Show Logs", command=self.show_logs)
 
         self.load_credential_data()
+        self._update_treeview()
 
     def decrypt_password(self, encrypted_password):
         """Decrypt the encrypted password using the loaded key."""
