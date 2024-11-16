@@ -3,7 +3,7 @@ from tkinter import messagebox
 import json
 from cryptography.fernet import Fernet
 from Update_module.Update_module import *
-
+from custom_widgets import RestartMessageDialog
 
 
 def load_settings():
@@ -170,14 +170,16 @@ class SettingsFrame(ctk.CTkFrame):
         sidebar_position = "right" if self.sidebar_position_switch.get() else "left"
         self.settings["sidebar_side"] = sidebar_position
         self.save_settings_in_file()
-        restart_now = messagebox.askyesno(
-            "Restart Required",
-            "The sidebar position has been updated. Restart the application for the changes to take effect.\n\n"
-            "Would you like to restart now?"
-        )
 
-        if restart_now:
-            restart_application_static(EXECUTABLE_NAME)
+        # Create and show the custom restart message dialog
+        restart_dialog = RestartMessageDialog(
+            self.parent,
+            message="The sidebar position has been updated. Restart the application for the changes to take effect.\n\nWould you like to restart now?"
+        )
+        user_response = restart_dialog.show()
+
+        if user_response == "restart_now":
+            restart_application_static(EXECUTABLE_NAME)  # Restart the application
 
 
     # def check_for_updates(self):
