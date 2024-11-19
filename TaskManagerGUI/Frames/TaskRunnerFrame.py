@@ -124,6 +124,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
                 for i, command in enumerate(commands):
                     try:
                         # Run the command and capture output and errors
+                        messagebox.showinfo("Warning", f"Running command '{command}'")
                         result = subprocess.run(
                             command,
                             shell=True,
@@ -132,9 +133,13 @@ class TaskRunnerFrame(ctk.CTkFrame):
                             stderr=log_file,  # Log errors to the same file
                             text=True  # Ensure output is in text format
                         )
-                        self.update_progress_bar(i + 1, len(commands))
-                        print(result)
 
+                        if result.returncode != 0:
+                            log_file.write(f"Command failed with exit code {result.returncode}.\n")
+                            messagebox.showerror("Error", f"Command '{command}' failed with exit code {result.returncode}.")
+                            break
+
+                        self.update_progress_bar(i + 1, len(commands))
                     except subprocess.CalledProcessError as e:
                         # Log the error to the file and show a messagebox
                         log_file.write(f"Command failed with exit code {e.returncode}.\n")
