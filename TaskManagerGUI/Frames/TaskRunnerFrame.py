@@ -8,6 +8,7 @@ import tkinter.messagebox as messagebox
 import json
 import os
 import time
+from datetime import datetime
 
 def load_tasks():
     """Load tasks from the JSON file and return a list of tasks."""
@@ -52,9 +53,9 @@ class TaskRunnerFrame(ctk.CTkFrame):
         self.button_frame.pack(fill=ctk.BOTH, expand=True, padx=10, pady=10)
 
         # Progress bar
-        self.progress_bar = ctk.CTkProgressBar(self)
+        self.progress_bar = ctk.CTkProgressBar(self, height=15)
         self.progress_bar.pack(fill=ctk.X, padx=10, pady=(5, 10))
-        self.progress_bar.set(0)  # Initialize progress bar to 0
+        self.progress_bar.set(0)
 
         # Dynamically create buttons for each task
         self.create_task_buttons()
@@ -111,30 +112,49 @@ class TaskRunnerFrame(ctk.CTkFrame):
         threading.Thread(target=self.run_commands_thread, args=[args, name]).start()
 
     def run_commands_thread(self, commands, name):
-        """Run a series of subprocesses with progress tracking."""
+        """Run a series of subprocesses with progress tracking and log output/errors."""
         self.disable_buttons()
 
+        # Generate a unique log file name with a timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
+        log_file_path = f"{name}_{timestamp}.log"
+
         try:
-            for i, command in enumerate(commands):
-                try:
-                    result = subprocess.run(command, shell=True, check=True)
-                    print(result)
-                    self.update_progress_bar(i + 1, len(commands))
+            with open(log_file_path, "w") as log_file:  # Open log file for writing
+                for i, command in enumerate(commands):
+                    try:
+                        # Run the command and capture output and errors
+                        result = subprocess.run(
+                            command,
+                            shell=True,
+                            check=True,
+                            stdout=log_file,  # Log standard output to the file
+                            stderr=log_file,  # Log errors to the same file
+                            text=True  # Ensure output is in text format
+                        )
+                        self.update_progress_bar(i + 1, len(commands))
+                        print(result)
 
-                except subprocess.CalledProcessError as e:
-                    messagebox.showerror("Error", f"Command '{command}' failed with exit code {e.returncode}.")
-                    break
+                    except subprocess.CalledProcessError as e:
+                        # Log the error to the file and show a messagebox
+                        log_file.write(f"Command failed with exit code {e.returncode}.\n")
+                        messagebox.showerror("Error", f"Command '{command}' failed with exit code {e.returncode}.")
+                        break
 
-                except FileNotFoundError:
-                    messagebox.showerror("Error", f"Command '{command}' not found.")
-                    break
+                    except FileNotFoundError:
+                        # Log the error to the file and show a messagebox
+                        log_file.write(f"Command '{command}' not found.\n")
+                        messagebox.showerror("Error", f"Command '{command}' not found.")
+                        break
 
-                except Exception as e:
-                    messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
-                    break
+                    except Exception as e:
+                        # Log the unexpected error to the file and show a messagebox
+                        log_file.write(f"An unexpected error occurred: {str(e)}\n")
+                        messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
+                        break
 
-            else:
-                messagebox.showinfo("Completed", f"Task {name} has been completed successfully.")
+                else:
+                    messagebox.showinfo("Completed", f"Task {name} has been completed successfully.")
 
         finally:
             self.update_progress_bar(len(commands), len(commands))
