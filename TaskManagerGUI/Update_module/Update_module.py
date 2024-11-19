@@ -17,7 +17,7 @@ requests.utils.DEFAULT_CA_BUNDLE_PATH = certifi_path
 
 # EXECUTABLE_NAME = "python main.py"
 EXECUTABLE_NAME = "TaskManager.exe"
-VERSION = "v3.0.0"
+VERSION = "v4.0.0"
 
 def restart_application_executable():
     """

@@ -18,8 +18,7 @@ class AboutFrame(ctk.CTkFrame):
             "Feature 1: Task Creation",
             "Feature 2: Task execution",
             "Feature 3: Retrieve Jenkins logs",
-            "Feature 4: Call an API (Under development)",
-            "Feature 5: Add an oracle error stack and files will be opened in vscode"
+            "Feature 4: Call an API (Under development)"
         ]
         self.developer_name = "Nikolas Papaki"
         self.developer_email = "nikolaspapakis@hotmail.com"

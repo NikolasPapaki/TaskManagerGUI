@@ -9,7 +9,7 @@ from .SettingsFrame import SettingsFrame
 from .AboutFrame import AboutFrame
 from .TaskRunnerFrame import TaskRunnerFrame
 from .TaskManagerFrame import TaskManagerFrame
-from .LogFrame import LogsFrame
+from .TaskManagementLogsFrame import LogsFrame
 from .JenkinsFrame import JenkinsFrame
 # from .ApiRequstFrame import ApiRequestFrame
-from .DebugFrame import DebugFrame
+# from .DebugFrame import DebugFrame

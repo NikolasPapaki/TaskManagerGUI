@@ -106,7 +106,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
         # Generate a unique log file name with a timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
         log_file_path = f"{task_name_sanitize(name)}_{timestamp}.log"
-        time.sleep(60)
+
         try:
             with open(log_file_path, "w") as log_file:  # Open log file for writing
                 for i, command in enumerate(commands):
@@ -123,7 +123,8 @@ class TaskRunnerFrame(ctk.CTkFrame):
 
                         if result.returncode != 0:
                             log_file.write(f"Command failed with exit code {result.returncode}.\n")
-                            messagebox.showerror("Error", f"Command '{command}' failed with exit code {result.returncode}.")
+                            messagebox.showerror("Error",
+                                                 f"Command '{command}' failed with exit code {result.returncode}.")
                             break
 
                         self.update_progress_bar(i + 1, len(commands))
@@ -146,11 +147,60 @@ class TaskRunnerFrame(ctk.CTkFrame):
                         break
 
                 else:
-                    messagebox.showinfo("Completed", f"Task {name} has been completed successfully.")
+                    if messagebox.askyesno("Completed", f"Task {name} has been completed successfully.\n"
+                                                        "Would you like to view the log output?"):
+                        with open(log_file_path, "r") as log_file:
+                            log_content = log_file.read()
+                        # Display the log content in a popup
+                        self.show_log_popup(log_content)
 
         finally:
             self.update_progress_bar(len(commands), len(commands))
             self.enable_buttons()
+
+    def show_log_popup(self, log_content):
+        """Display the log content in a modal, scrollable popup window using CustomTkinter."""
+        log_window = ctk.CTkToplevel(self)
+        log_window.title("Log Output")
+
+        # Center the popup in the parent window
+        parent_x = self.winfo_rootx()
+        parent_y = self.winfo_rooty()
+        parent_width = self.winfo_width()
+        parent_height = self.winfo_height()
+
+        popup_width = 600
+        popup_height = 400
+        position_x = parent_x + (parent_width - popup_width) // 2
+        position_y = parent_y + (parent_height - popup_height) // 2
+
+        log_window.geometry(f"{popup_width}x{popup_height}+{position_x}+{position_y}")
+
+        # Make the popup modal
+        log_window.transient(self)  # Set the popup as a child of the parent window
+        log_window.grab_set()  # Disable interaction with the parent window
+
+        # Create a frame to hold the Textbox and scrollbar
+        frame = ctk.CTkFrame(log_window)
+        frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Create the CTkTextbox
+        text_widget = ctk.CTkTextbox(frame, wrap="word", font=("Arial", 12))
+        text_widget.insert("0.0", log_content)  # Insert the log content at the start
+        text_widget.configure(state="disabled")  # Make the textbox read-only
+        text_widget.pack(side="left", fill="both", expand=True)
+
+        # Add a scrollbar
+        scrollbar = ctk.CTkScrollbar(frame, command=text_widget.yview)
+        scrollbar.pack(side="right", fill="y")
+        text_widget.configure(yscrollcommand=scrollbar.set)
+
+        # Add a Close button
+        close_button = ctk.CTkButton(log_window, text="Close", command=log_window.destroy)
+        close_button.pack(pady=10)
+
+        # Wait for the popup to close
+        log_window.wait_window()
 
     def update_progress_bar(self, completed, total):
         if total > 0:
