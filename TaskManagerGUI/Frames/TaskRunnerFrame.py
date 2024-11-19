@@ -9,6 +9,8 @@ import json
 import os
 import time
 from datetime import datetime
+import re
+
 
 def load_tasks():
     """Load tasks from the JSON file and return a list of tasks."""
@@ -23,6 +25,10 @@ def load_tasks():
         messagebox.showerror("Error", "There was an error loading the task file")
         return []
 
+
+def task_name_sanitize(task_name) -> str:
+    """Sanitize the task name by replacing invalid characters with underscores."""
+    return re.sub(r'[\\/:"*?<>|]', '_', task_name)
 
 class TaskRunnerFrame(ctk.CTkFrame):
     ORDER = 2
@@ -117,7 +123,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
 
         # Generate a unique log file name with a timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
-        log_file_path = f"{name}_{timestamp}.log"
+        log_file_path = f"{task_name_sanitize(name)}_{timestamp}.log"
 
         try:
             with open(log_file_path, "w") as log_file:  # Open log file for writing
