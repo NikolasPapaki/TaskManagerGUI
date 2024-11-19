@@ -124,13 +124,12 @@ class TaskRunnerFrame(ctk.CTkFrame):
         # Generate a unique log file name with a timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
         log_file_path = f"{task_name_sanitize(name)}_{timestamp}.log"
-
+        time.sleep(60)
         try:
             with open(log_file_path, "w") as log_file:  # Open log file for writing
                 for i, command in enumerate(commands):
                     try:
                         # Run the command and capture output and errors
-                        messagebox.showinfo("Warning", f"Running command '{command}'")
                         result = subprocess.run(
                             command,
                             shell=True,

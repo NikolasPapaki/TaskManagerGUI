@@ -5,7 +5,7 @@ import json
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
-
+from SharedObjects import Settings
 
 class DebugFrame(ctk.CTkFrame):
     ORDER = 4
@@ -13,8 +13,8 @@ class DebugFrame(ctk.CTkFrame):
         super().__init__(parent)
 
         # Load the settings to get the root directory
-        self.settings = self.load_settings()
-        self.root_directory = self.settings.get("debugger_root_directory", "")  # Default to empty string if not set
+        self.settings_manager = Settings()
+        self.root_directory = self.settings_manager.get("debugger_root_directory", "")  # Default to empty string if not set
 
         # Title for the Debugger tool
         title_label = ctk.CTkLabel(self, text="Error Debugger", font=("Arial", 24))
@@ -70,14 +70,6 @@ class DebugFrame(ctk.CTkFrame):
 
         # Step 2: Open the files in VS Code at the specified line numbers
         open_files_in_vscode(files_and_lines, self.root_directory)
-
-    def load_settings(self):
-        """Load settings from a JSON file."""
-        if os.path.exists("settings.json"):
-            with open("settings.json", "r") as file:
-                return json.load(file)
-        return {}
-
 
 def parse_error_message(error_message, schema="SCOTT"):
     """Parse an error message to find the file names and line numbers."""

@@ -4,14 +4,7 @@ import json
 from cryptography.fernet import Fernet
 from Update_module.Update_module import *
 from custom_widgets import RestartMessageDialog
-
-
-def load_settings():
-    if os.path.exists("settings.json"):
-        with open("settings.json", "r") as file:
-            return json.load(file)
-    return {}
-
+from SharedObjects import Settings
 
 def load_or_generate_key():
     """Load the encryption key from a file or generate a new one if not found."""
@@ -32,9 +25,9 @@ class SettingsFrame(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
         self.updater = Update_module()
-        self.parent = parent
+        self.settings_manager = Settings()
 
-        self.settings = load_settings()
+        self.parent = parent
 
         self.key = None
         self.cipher_suite = None
@@ -108,20 +101,15 @@ class SettingsFrame(ctk.CTkFrame):
         self.load_credential_data()
         self.load_debugger_directory()
 
-    def save_settings_in_file(self):
-        with open("settings.json", "w") as file:
-            json.dump(self.settings, file, indent=4)
-
     def load_credential_data(self):
         """Load the username and encrypted password from settings.json and decrypt the password."""
-        settings = self.settings
-        if "username" in settings:
-            self.username_entry.insert(0, settings["username"])
-        if "password" in settings:
+        if "username" in self.settings_manager.settings:
+            self.username_entry.insert(0, self.settings_manager.settings["username"])
+        if "password" in self.settings_manager.settings:
             if not self.key and not self.cipher_suite:
                 self.key = load_or_generate_key()
                 self.cipher_suite = Fernet(self.key)
-            encrypted_password = settings["password"]
+            encrypted_password = self.settings_manager.settings["password"]
             decrypted_password = self.cipher_suite.decrypt(encrypted_password.encode()).decode()
             self.password_entry.insert(0, decrypted_password)
 
@@ -136,21 +124,20 @@ class SettingsFrame(ctk.CTkFrame):
                 self.cipher_suite = Fernet(self.key)
             # Encrypt the password
             encrypted_password = self.cipher_suite.encrypt(password.encode()).decode()
-            self.settings["password"] = encrypted_password
+            self.settings_manager.add_or_update("password",encrypted_password)
         else:
-            if "password" in self.settings:
-                del self.settings["password"]
+            if "password" in self.settings_manager.settings:
+                self.settings_manager.delete("password")
 
         if username:
-            self.settings["username"] = username
+            self.settings_manager.add_or_update("username", username)
         else:
-            if "username" in self.settings:
-                del self.settings["username"]
+            if "username" in self.settings_manager.settings:
+                self.settings_manager.delete("username")
 
     def load_theme_mode(self):
         # Load settings and set current theme
-        settings = load_settings()
-        current_theme = settings.get("theme", "dark")  # Default to "dark" if no theme is found
+        current_theme = self.settings_manager.get("theme", "dark")  # Default to "dark" if no theme is found
         ctk.set_appearance_mode(current_theme)
         self.theme_switch.select() if current_theme.lower() == "dark" else self.theme_switch.deselect()
 
@@ -158,12 +145,12 @@ class SettingsFrame(ctk.CTkFrame):
     def change_theme_mode(self):
         new_theme = "dark" if self.theme_switch.get() else "light"
         ctk.set_appearance_mode(new_theme)
-        self.settings["theme"] = new_theme
-        self.save_settings_in_file()
+        self.settings_manager.add_or_update("theme", new_theme)
+
 
     def load_sidebar_position(self):
         """Load sidebar position from settings."""
-        sidebar_position = self.settings.get("sidebar_side", "left")  # Default to "left"
+        sidebar_position = self.settings_manager.get("sidebar_side", "left")  # Default to "left"
         if sidebar_position == "right":
             self.sidebar_position_switch.select()
         else:
@@ -172,8 +159,7 @@ class SettingsFrame(ctk.CTkFrame):
     def change_sidebar_position(self):
         """Change sidebar position and save to settings."""
         sidebar_position = "right" if self.sidebar_position_switch.get() else "left"
-        self.settings["sidebar_side"] = sidebar_position
-        self.save_settings_in_file()
+        self.settings_manager.add_or_update("sidebar_side", sidebar_position)
 
         # Create and show the custom restart message dialog
         restart_dialog = RestartMessageDialog(
@@ -207,23 +193,22 @@ class SettingsFrame(ctk.CTkFrame):
     #         print(f"Error: {e}")
 
     def load_debugger_directory(self):
-        settings = self.settings
-        if "debugger_root_directory" in settings:
-            self.debugger_root_entry.insert(0, settings["debugger_root_directory"])
+        if "debugger_root_directory" in self.settings_manager.settings:
+            self.debugger_root_entry.insert(0, self.settings_manager.get("debugger_root_directory"))
 
     def set_debugger_directory_settings(self):
         # Save the debugger root directory setting
         debugger_root = self.debugger_root_entry.get().strip()
         if debugger_root:
-            self.settings["debugger_root_directory"] = debugger_root
+            self.settings_manager.add_or_update("debugger_root_directory", debugger_root)
         else:
-            if "debugger_root_directory" in self.settings:
-                del self.settings["debugger_root_directory"]
+            if "debugger_root_directory" in self.settings_manager.settings:
+                self.settings_manager.delete("debugger_root_directory")
 
     def save_all_settings(self):
         self.set_debugger_directory_settings()
         self.set_credential_data_settings()
-        self.save_settings_in_file()
+        self.settings_manager.save_settings()
 
         # Confirmation message
         messagebox.showinfo("Settings Saved", "Your settings have been saved successfully.")

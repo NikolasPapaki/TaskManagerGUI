@@ -4,6 +4,7 @@ from Frames import *
 import re
 import os
 import json
+from SharedObjects import Settings
 
 def button_formating(text):
     """Add spaces before uppercase letters in camel case strings."""
@@ -14,12 +15,12 @@ class ApplicationInterface:
         self.parent = parent
 
         # Load settings and set current theme
-        self.settings = self.load_settings()
-        current_theme = self.settings.get("theme", "dark")  # Default to "dark" if no theme is found
+        self.settings_manager = Settings()
+        current_theme = self.settings_manager.get("theme", "dark")  # Default to "dark" if no theme is found
         ctk.set_appearance_mode(current_theme)
 
         # Determine the position of the sidebar
-        self.sidebar_side = self.settings.get("sidebar_side", "left").lower()
+        self.sidebar_side = self.settings_manager.get("sidebar_side", "left").lower()
         self.sidebar_width = 250
 
         # Create the sidebar frame with the specified width
@@ -37,16 +38,11 @@ class ApplicationInterface:
         # Create buttons for the sidebar in a custom order
         self.create_sidebar_buttons()
 
-        # Initialize the first frame
+        # Initialize all frames and set the current frame
+        self.frames = {}
+        self.init_frames()
         self.current_frame = None
         self.show_frame(HomeFrame)
-
-    def load_settings(self):
-        """Load settings from the JSON file, or return an empty dictionary if the file does not exist."""
-        if os.path.exists("settings.json"):
-            with open("settings.json", "r") as file:
-                return json.load(file)
-        return {}
 
     def update_sidebar_position(self):
         """Update the packing order of the sidebar and content area."""
@@ -76,12 +72,15 @@ class ApplicationInterface:
             button = ctk.CTkButton(self.sidebar, text=button_formating(text), command=lambda f=frame_class: self.show_frame(f))
             button.pack(pady=5, padx=10, fill=ctk.X)
 
+    def init_frames(self):
+        """Initialize all frames and store them in the frames dictionary."""
+        for name, obj in inspect.getmembers(inspect.getmodule(inspect.currentframe())):
+            if inspect.isclass(obj) and issubclass(obj, ctk.CTkFrame):
+                self.frames[obj] = obj(self.content_area)
+
     def show_frame(self, frame_class):
-        # Destroy the current frame if it exists
-        if self.current_frame is not None:
-            self.current_frame.destroy()
-
-        # Create a new frame and display it
-        self.current_frame = frame_class(self.content_area)
-        self.current_frame.pack(fill=ctk.BOTH, expand=True)
-
+        """Show the selected frame and hide the current one."""
+        if self.current_frame:
+            self.current_frame.pack_forget()  # Hide the current frame
+        self.current_frame = self.frames[frame_class]  # Switch to the selected frame
+        self.current_frame.pack(fill=ctk.BOTH, expand=True)  # Show the selected frame

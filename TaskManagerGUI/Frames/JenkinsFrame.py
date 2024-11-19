@@ -7,6 +7,7 @@ from tkinter import messagebox
 import customtkinter as ctk
 from cryptography.fernet import Fernet
 import certifi
+from SharedObjects import Settings
 
 # Use the bundled certifi file if running as an executable
 if getattr(sys, 'frozen', False):  # Check if running as a PyInstaller bundle
@@ -17,15 +18,6 @@ else:  # Fallback for normal Python execution
 # Set the path for requests
 import requests
 requests.utils.DEFAULT_CA_BUNDLE_PATH = certifi_path
-
-
-def load_settings():
-    """Load settings from the JSON file, or return an empty dictionary if the file does not exist."""
-    if os.path.exists("settings.json"):
-        with open("settings.json", "r") as file:
-            return json.load(file)
-    return {}
-
 
 def load_key():
     """Load the encryption key from a file or return None if not found."""
@@ -42,7 +34,7 @@ class JenkinsFrame(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
         self.master = master
-        self.settings = load_settings()
+        self.settings_manager = Settings()
         self.build_history = []
 
         # Store the expanded state for each item
@@ -266,8 +258,7 @@ class JenkinsFrame(ctk.CTkFrame):
 
     def load_credential_data(self):
         """Load the username and encrypted password from settings.json and decrypt the password."""
-        settings = self.settings
-        if "username" in settings:
-            self.username = self.settings.get("username")
-        if "password" in settings:
-            self.password = self.decrypt_password(self.settings.get("password"))
+        if "username" in self.settings_manager.settings:
+            self.username = self.settings_manager.get("username")
+        if "password" in self.settings_manager.settings:
+            self.password = self.decrypt_password(self.settings_manager.get("password"))
