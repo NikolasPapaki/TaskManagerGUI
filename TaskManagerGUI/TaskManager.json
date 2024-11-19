@@ -1,0 +1,129 @@
+{
+ "version": "auto-py-to-exe-configuration_v1",
+ "pyinstallerOptions": [
+  {
+   "optionDest": "noconfirm",
+   "value": true
+  },
+  {
+   "optionDest": "filenames",
+   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/main.py"
+  },
+  {
+   "optionDest": "onefile",
+   "value": false
+  },
+  {
+   "optionDest": "console",
+   "value": true
+  },
+  {
+   "optionDest": "name",
+   "value": "TaskManager"
+  },
+  {
+   "optionDest": "clean_build",
+   "value": false
+  },
+  {
+   "optionDest": "strip",
+   "value": true
+  },
+  {
+   "optionDest": "noupx",
+   "value": true
+  },
+  {
+   "optionDest": "disable_windowed_traceback",
+   "value": false
+  },
+  {
+   "optionDest": "uac_admin",
+   "value": false
+  },
+  {
+   "optionDest": "uac_uiaccess",
+   "value": false
+  },
+  {
+   "optionDest": "argv_emulation",
+   "value": false
+  },
+  {
+   "optionDest": "bootloader_ignore_signals",
+   "value": false
+  },
+  {
+   "optionDest": "datas",
+   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/custom_widgets;custom_widgets/"
+  },
+  {
+   "optionDest": "datas",
+   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/Frames;Frames/"
+  },
+  {
+   "optionDest": "datas",
+   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/Interface;Interface/"
+  },
+  {
+   "optionDest": "datas",
+   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/Update_module;Update_module/"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "customtkinter"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "re"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "tkinter"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "json"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "os"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "inspect"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "unicodedata"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "certifi"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "ssl"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "cryptography"
+  },
+  {
+   "optionDest": "hiddenimports",
+   "value": "requests"
+  },
+  {
+   "optionDest": "datas",
+   "value": "C:/Program Files/OpenSSL-Win64/bin/libcrypto-3-x64.dll;."
+  },
+  {
+   "optionDest": "datas",
+   "value": "C:/Program Files/OpenSSL-Win64/bin/libssl-3-x64.dll;."
+  }
+ ],
+ "nonPyinstallerOptions": {
+  "increaseRecursionLimit": true,
+  "manualArguments": ""
+ }
+}
