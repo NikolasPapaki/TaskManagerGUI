@@ -82,5 +82,11 @@ class ApplicationInterface:
         """Show the selected frame and hide the current one."""
         if self.current_frame:
             self.current_frame.pack_forget()  # Hide the current frame
+
         self.current_frame = self.frames[frame_class]  # Switch to the selected frame
         self.current_frame.pack(fill=ctk.BOTH, expand=True)  # Show the selected frame
+
+        # Dynamically call the 'on_show' method of the frame (if it exists)
+        if hasattr(self.current_frame, 'on_show'):
+            self.current_frame.on_show()  # Call the 'on_show' method of the frame
+

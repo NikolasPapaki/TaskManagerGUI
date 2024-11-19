@@ -12,4 +12,4 @@ from .TaskManagerFrame import TaskManagerFrame
 from .LogFrame import LogsFrame
 from .JenkinsFrame import JenkinsFrame
 # from .ApiRequstFrame import ApiRequestFrame
-# from .DebugFrame import DebugFrame
+from .DebugFrame import DebugFrame

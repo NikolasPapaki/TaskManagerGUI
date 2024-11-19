@@ -2,6 +2,14 @@ import json
 import os
 
 class Settings:
+    _instance = None  # Class-level variable to store the single instance
+
+    def __new__(cls, *args, **kwargs):
+        """Override __new__ to ensure only one instance of Settings exists."""
+        if not cls._instance:
+            cls._instance = super(Settings, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+
     def __init__(self, file_path="settings.json"):
         self.file_path = file_path
         self.settings = self.load_settings()
@@ -38,3 +46,4 @@ class Settings:
         """Save the current settings to the JSON file."""
         with open(self.file_path, "w") as file:
             json.dump(self.settings, file, indent=4)
+

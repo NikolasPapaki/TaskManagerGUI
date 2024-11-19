@@ -1,34 +1,17 @@
-from logging import exception
-from multiprocessing.forkserver import read_signed
-
 import customtkinter as ctk
 import subprocess
 import threading
 import tkinter.messagebox as messagebox
-import json
-import os
 import time
 from datetime import datetime
 import re
-
-
-def load_tasks():
-    """Load tasks from the JSON file and return a list of tasks."""
-    if not os.path.exists("tasks.json"):
-        return []
-
-    try:
-        with open("tasks.json", "r") as file:
-            data = json.load(file)
-            return data.get("tasks", [])
-    except json.JSONDecodeError:
-        messagebox.showerror("Error", "There was an error loading the task file")
-        return []
+from SharedObjects import Tasks  # Import the shared Tasks object
 
 
 def task_name_sanitize(task_name) -> str:
     """Sanitize the task name by replacing invalid characters with underscores."""
     return re.sub(r'[\\/:"*?<>|]', '_', task_name)
+
 
 class TaskRunnerFrame(ctk.CTkFrame):
     ORDER = 2
@@ -40,8 +23,8 @@ class TaskRunnerFrame(ctk.CTkFrame):
         label = ctk.CTkLabel(self, text="Task Runner", font=("Arial", 24))
         label.pack(pady=20)
 
-        # Load tasks from the JSON file
-        self.tasks = load_tasks()
+        # Initialize the shared Tasks object and pass a callback to it
+        self.tasks_manager = Tasks()
 
         # Create a label for the search entry
         search_label = ctk.CTkLabel(self, text="Search tasks by name:", font=("Arial", 14))
@@ -63,7 +46,6 @@ class TaskRunnerFrame(ctk.CTkFrame):
         self.progress_bar.pack(fill=ctk.X, padx=10, pady=(5, 10))
         self.progress_bar.set(0)
 
-        # Dynamically create buttons for each task
         self.create_task_buttons()
 
         # Debounce mechanism
@@ -75,7 +57,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
         current_time = time.time()
         if current_time - self.last_search_time >= self.debounce_delay:
             self.last_search_time = current_time
-            self.update_task_buttons()
+            self.create_task_buttons()
         else:
             # If the user is typing too fast, just wait
             pass
@@ -92,7 +74,11 @@ class TaskRunnerFrame(ctk.CTkFrame):
 
     def create_buttons_thread(self, search_text):
         """Create buttons in a background thread to avoid blocking the UI."""
-        filtered_tasks = [task for task in self.tasks if search_text in task["name"].lower()]
+        # Get tasks from the shared Tasks object
+        tasks = self.tasks_manager.get_tasks()
+
+        # Filter tasks based on the search text
+        filtered_tasks = [task for task in tasks if search_text in task["name"].lower()]
 
         # Create the buttons in the UI thread
         self.after(0, self.update_buttons_in_ui, filtered_tasks)
@@ -109,10 +95,6 @@ class TaskRunnerFrame(ctk.CTkFrame):
                     command=lambda cmds=commands, name=task_name: self.run_commands(cmds, name)
                 )
                 button.pack(pady=5, padx=10, fill=ctk.X)
-
-    def update_task_buttons(self):
-        """Update the displayed task buttons based on search criteria."""
-        self.create_task_buttons()
 
     def run_commands(self, args, name):
         threading.Thread(target=self.run_commands_thread, args=[args, name]).start()
@@ -183,3 +165,6 @@ class TaskRunnerFrame(ctk.CTkFrame):
     def enable_buttons(self):
         for button in self.button_frame.winfo_children():
             button.configure(state="normal")
+
+    def on_show(self):
+       self.create_task_buttons()

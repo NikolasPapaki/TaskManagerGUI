@@ -262,3 +262,6 @@ class JenkinsFrame(ctk.CTkFrame):
             self.username = self.settings_manager.get("username")
         if "password" in self.settings_manager.settings:
             self.password = self.decrypt_password(self.settings_manager.get("password"))
+
+    def on_show(self):
+        self.load_credential_data()
