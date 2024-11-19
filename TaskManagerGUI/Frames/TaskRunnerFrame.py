@@ -1,4 +1,6 @@
 from logging import exception
+from multiprocessing.forkserver import read_signed
+
 import customtkinter as ctk
 import subprocess
 import threading
@@ -116,6 +118,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
             for i, command in enumerate(commands):
                 try:
                     result = subprocess.run(command, shell=True, check=True)
+                    print(result)
                     self.update_progress_bar(i + 1, len(commands))
 
                 except subprocess.CalledProcessError as e:

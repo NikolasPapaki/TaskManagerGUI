@@ -54,12 +54,12 @@ class SettingsFrame(ctk.CTkFrame):
         self.theme_switch = ctk.CTkSwitch(body_frame, text="Dark Mode", command=self.change_theme_mode)
         self.theme_switch.pack(pady=10, anchor="w", padx=20)
 
-        # self.sidebar_position_switch = ctk.CTkSwitch(
-        #     body_frame,
-        #     text="Sidebar on Right",
-        #     command=self.change_sidebar_position
-        # )
-        # self.sidebar_position_switch.pack(pady=10, anchor="w", padx=20)
+        self.sidebar_position_switch = ctk.CTkSwitch(
+            body_frame,
+            text="Sidebar on Right",
+            command=self.change_sidebar_position
+        )
+        self.sidebar_position_switch.pack(pady=10, anchor="w", padx=20)
 
         # Credentials frame
         credential_frame = ctk.CTkFrame(body_frame)
@@ -104,7 +104,7 @@ class SettingsFrame(ctk.CTkFrame):
         self.save_button.pack(pady=20)
 
         self.load_theme_mode()
-        # self.load_sidebar_position()
+        self.load_sidebar_position()
         self.load_credential_data()
         self.load_debugger_directory()
 
@@ -161,29 +161,29 @@ class SettingsFrame(ctk.CTkFrame):
         self.settings["theme"] = new_theme
         self.save_settings_in_file()
 
-    # def load_sidebar_position(self):
-    #     """Load sidebar position from settings."""
-    #     sidebar_position = self.settings.get("sidebar_side", "left")  # Default to "left"
-    #     if sidebar_position == "right":
-    #         self.sidebar_position_switch.select()
-    #     else:
-    #         self.sidebar_position_switch.deselect()
-    #
-    # def change_sidebar_position(self):
-    #     """Change sidebar position and save to settings."""
-    #     sidebar_position = "right" if self.sidebar_position_switch.get() else "left"
-    #     self.settings["sidebar_side"] = sidebar_position
-    #     self.save_settings_in_file()
-    #
-    #     # Create and show the custom restart message dialog
-    #     restart_dialog = RestartMessageDialog(
-    #         self.parent,
-    #         message="The sidebar position has been updated. Restart the application for the changes to take effect.\n\nWould you like to restart now?"
-    #     )
-    #     user_response = restart_dialog.show()
-    #
-    #     if user_response == "restart_now":
-    #         restart_application_executable()  # Restart the application
+    def load_sidebar_position(self):
+        """Load sidebar position from settings."""
+        sidebar_position = self.settings.get("sidebar_side", "left")  # Default to "left"
+        if sidebar_position == "right":
+            self.sidebar_position_switch.select()
+        else:
+            self.sidebar_position_switch.deselect()
+
+    def change_sidebar_position(self):
+        """Change sidebar position and save to settings."""
+        sidebar_position = "right" if self.sidebar_position_switch.get() else "left"
+        self.settings["sidebar_side"] = sidebar_position
+        self.save_settings_in_file()
+
+        # Create and show the custom restart message dialog
+        restart_dialog = RestartMessageDialog(
+            self.parent,
+            message="The sidebar position has been updated. Restart the application for the changes to take effect.\n\nWould you like to restart now?"
+        )
+        user_response = restart_dialog.show()
+
+        if user_response == "restart_now":
+            restart_application_executable()  # Restart the application
 
 
     # def check_for_updates(self):
