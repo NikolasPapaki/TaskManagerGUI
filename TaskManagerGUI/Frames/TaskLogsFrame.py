@@ -28,7 +28,8 @@ class TaskLogsFrame(ctk.CTkFrame):
         search_entry.pack(pady=10, padx=10, fill=ctk.X)
 
         # Treeview widget (replacing Listbox)
-        self.logs_treeview = ttk.Treeview(self, columns=("Log File",), show="headings", height=10)
+        self.logs_treeview = ttk.Treeview(self, columns=("Log File",), show="headings", height=10,
+                                          selectmode="extended")
         self.logs_treeview.heading("Log File", text="Log File")
         self.logs_treeview.pack(expand=True, fill="both", padx=10, pady=10)
 
@@ -43,8 +44,6 @@ class TaskLogsFrame(ctk.CTkFrame):
 
         # Create the context menu using tkinter.Menu
         self.context_menu = tk.Menu(self, tearoff=False)
-        self.context_menu.add_command(label="View Log", command=self.view_log)
-        self.context_menu.add_command(label="Delete Log", command=self.delete_log)
 
     def load_logs(self):
         """Load log files from the task_logs directory."""
@@ -66,8 +65,6 @@ class TaskLogsFrame(ctk.CTkFrame):
         # Insert log file names into the treeview
         if self.filtered_log_files:
             self.update_log_treeview()
-        else:
-            messagebox.showinfo("No Logs", "No log files found in the 'task_logs' directory.")
 
     def extract_timestamp(self, log_file_name):
         """Extract the timestamp from the log file name."""
@@ -133,22 +130,53 @@ class TaskLogsFrame(ctk.CTkFrame):
         item_id = self.logs_treeview.identify_row(event.y)
 
         try:
-            if item_id:  # If an item is identified (clicked)
-                # Select the item programmatically
-                self.logs_treeview.selection_set(item_id)
+            # Get the currently selected items (allow multiple selections)
+            selected_items = self.logs_treeview.selection()
 
-                # Get the selected item after selecting it
-                selected_item = self.logs_treeview.selection()[0]  # We expect one selected item
+            # If no item is selected yet, select the item under the cursor
+            if not selected_items and item_id:
+                self.logs_treeview.selection_add(item_id)
 
-                # Show the context menu
-                if selected_item:
-                    self.context_menu.post(event.x_root, event.y_root)  # Show the context menu
-                else:
-                    print("No item selected, context menu will not be shown.")
-            else:
-                print("No item identified at the click location.")
+            # Clear the existing context menu options
+            self.context_menu.delete(0, tk.END)
+
+            # Show options based on the number of selected items
+            if len(self.logs_treeview.selection()) == 1:  # If only one item is selected
+                self.context_menu.add_command(label="View Log", command=self.view_log)
+                self.context_menu.add_command(label="Delete Log", command=self.delete_log)
+            elif len(self.logs_treeview.selection()) > 1:  # If multiple items are selected
+                self.context_menu.add_command(label="Delete Selected Logs", command=self.delete_multiple_logs)
+
+            # Show the context menu
+            self.context_menu.post(event.x_root, event.y_root)
+
         except Exception as e:
             print(f"Error showing context menu: {e}")
+
+    def delete_multiple_logs(self):
+        """Delete the selected multiple log files after confirmation."""
+        selected_items = self.logs_treeview.selection()  # Get the selected items
+        if not selected_items:
+            messagebox.showerror("Error", "No log files selected.")
+            return
+
+        log_files_to_delete = []
+        for item in selected_items:
+            log_file_name = self.logs_treeview.item(item, "values")[0]  # Get the log file name
+            log_file_path = os.path.join("task_logs", log_file_name)  # Build the full path to the log file
+            log_files_to_delete.append((log_file_name, log_file_path))
+
+        # Show a confirmation dialog before deleting
+        files_str = ", ".join([file[0] for file in log_files_to_delete])  # Join log file names for display
+        if messagebox.askyesno("Confirm Deletion",
+                               f"Are you sure you want to delete the following logs?\nThis action cannot be undone!"):
+            try:
+                for log_file_name, log_file_path in log_files_to_delete:
+                    os.remove(log_file_path)  # Delete the log file
+                    self.filtered_log_files.remove(log_file_name)  # Remove from the filtered list
+                self.update_log_treeview()  # Update the Treeview
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to delete log file(s): {e}")
 
     def view_log(self):
         """View the log file content in a popup when selected from the context menu."""
