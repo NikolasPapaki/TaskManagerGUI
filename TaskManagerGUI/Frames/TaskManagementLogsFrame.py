@@ -5,7 +5,7 @@ import os
 import json
 
 
-class LogsFrame(ctk.CTkFrame):
+class TaskManagementLogsFrame(ctk.CTkFrame):
     ORDER = 97
 
     def __init__(self, parent):

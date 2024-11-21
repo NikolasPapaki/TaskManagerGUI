@@ -86,11 +86,11 @@ class SettingsFrame(ctk.CTkFrame):
         debugger_label.pack(pady=10, padx=10, anchor='w')
 
         # Debugger Root Directory Entry
-        self.debugger_root_entry_frame = ctk.CTkFrame(debugger_frame)
-        self.debugger_root_entry_frame.pack(pady=(5,15), padx=20, fill="x")
-        ctk.CTkLabel(self.debugger_root_entry_frame, text="Path").pack(side="left", anchor="w", padx=10)
-        self.debugger_root_entry = ctk.CTkEntry(self.debugger_root_entry_frame, width=300)
-        self.debugger_root_entry.pack(side="left", pady=5, anchor="w", expand=True)
+        # self.debugger_root_entry_frame = ctk.CTkFrame(debugger_frame)
+        # self.debugger_root_entry_frame.pack(pady=(5,15), padx=20, fill="x")
+        # ctk.CTkLabel(self.debugger_root_entry_frame, text="Path").pack(side="left", anchor="w", padx=10)
+        # self.debugger_root_entry = ctk.CTkEntry(self.debugger_root_entry_frame, width=300)
+        # self.debugger_root_entry.pack(side="left", pady=5, anchor="w", expand=True)
 
         # Save button
         self.save_button = ctk.CTkButton(body_frame, text="Save Settings", command=self.save_all_settings)
@@ -99,7 +99,7 @@ class SettingsFrame(ctk.CTkFrame):
         self.load_theme_mode()
         self.load_sidebar_position()
         self.load_credential_data()
-        self.load_debugger_directory()
+        # self.load_debugger_directory()
 
     def load_credential_data(self):
         """Load the username and encrypted password from settings.json and decrypt the password."""
@@ -191,22 +191,22 @@ class SettingsFrame(ctk.CTkFrame):
     #     except Exception as e:
     #         messagebox.showerror("Error!", "Error checking for updates.")
     #         print(f"Error: {e}")
-
-    def load_debugger_directory(self):
-        if "debugger_root_directory" in self.settings_manager.settings:
-            self.debugger_root_entry.insert(0, self.settings_manager.get("debugger_root_directory"))
-
-    def set_debugger_directory_settings(self):
-        # Save the debugger root directory setting
-        debugger_root = self.debugger_root_entry.get().strip()
-        if debugger_root:
-            self.settings_manager.add_or_update("debugger_root_directory", debugger_root)
-        else:
-            if "debugger_root_directory" in self.settings_manager.settings:
-                self.settings_manager.delete("debugger_root_directory")
+    #
+    # def load_debugger_directory(self):
+    #     if "debugger_root_directory" in self.settings_manager.settings:
+    #         self.debugger_root_entry.insert(0, self.settings_manager.get("debugger_root_directory"))
+    #
+    # def set_debugger_directory_settings(self):
+    #     # Save the debugger root directory setting
+    #     debugger_root = self.debugger_root_entry.get().strip()
+    #     if debugger_root:
+    #         self.settings_manager.add_or_update("debugger_root_directory", debugger_root)
+    #     else:
+    #         if "debugger_root_directory" in self.settings_manager.settings:
+    #             self.settings_manager.delete("debugger_root_directory")
 
     def save_all_settings(self):
-        self.set_debugger_directory_settings()
+        # self.set_debugger_directory_settings()
         self.set_credential_data_settings()
         self.settings_manager.save_settings()
 

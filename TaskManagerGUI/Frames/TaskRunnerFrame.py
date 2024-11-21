@@ -6,11 +6,11 @@ import time
 from datetime import datetime
 import re
 from SharedObjects import Tasks  # Import the shared Tasks object
-
+import os
 
 def task_name_sanitize(task_name) -> str:
     """Sanitize the task name by replacing invalid characters with underscores."""
-    return re.sub(r'[\\/:"*?<>|]', '_', task_name)
+    return re.sub(r'[\\/:"*?<>| ]', '_', task_name)
 
 
 class TaskRunnerFrame(ctk.CTkFrame):
@@ -23,44 +23,36 @@ class TaskRunnerFrame(ctk.CTkFrame):
         label = ctk.CTkLabel(self, text="Task Runner", font=("Arial", 24))
         label.pack(pady=20)
 
-        # Initialize the shared Tasks object and pass a callback to it
         self.tasks_manager = Tasks()
 
-        # Create a label for the search entry
         search_label = ctk.CTkLabel(self, text="Search tasks by name:", font=("Arial", 14))
         search_label.pack(pady=5, padx=10, anchor="w")
 
-        # Create a search bar
         self.search_var = ctk.StringVar()
         self.search_var.trace_add("write", self.on_search_input)
 
         search_entry = ctk.CTkEntry(self, textvariable=self.search_var, placeholder_text="Search tasks")
         search_entry.pack(pady=10, padx=10, fill=ctk.X)
 
-        # Create an inner frame to hold the task buttons
         self.button_frame = ctk.CTkFrame(self)
         self.button_frame.pack(fill=ctk.BOTH, expand=True, padx=10, pady=10)
 
-        # Progress bar
         self.progress_bar = ctk.CTkProgressBar(self, height=15)
         self.progress_bar.pack(fill=ctk.X, padx=10, pady=(5, 10))
         self.progress_bar.set(0)
 
-        self.create_task_buttons()
+        self.task_buttons = {}  # Keep track of buttons by task name
+        self.update_task_buttons()
 
-        # Debounce mechanism
         self.last_search_time = time.time()
-        self.debounce_delay = 0.3  # 300 ms delay after the user stops typing
+        self.debounce_delay = 0.3
 
     def on_search_input(self, *args):
         """Handle the search input with debounce."""
         current_time = time.time()
         if current_time - self.last_search_time >= self.debounce_delay:
             self.last_search_time = current_time
-            self.create_task_buttons()
-        else:
-            # If the user is typing too fast, just wait
-            pass
+            self.update_task_buttons()
 
     def create_task_buttons(self):
         """Create task buttons based on the current tasks and search filter."""
@@ -72,29 +64,51 @@ class TaskRunnerFrame(ctk.CTkFrame):
         # Use a background thread to update buttons
         threading.Thread(target=self.create_buttons_thread, args=(search_text,)).start()
 
-    def create_buttons_thread(self, search_text):
-        """Create buttons in a background thread to avoid blocking the UI."""
-        # Get tasks from the shared Tasks object
+    def update_task_buttons(self):
+        """Update task buttons using a background thread."""
+        search_text = self.search_var.get().lower()
+
+        threading.Thread(target=self.update_buttons_thread, args=(search_text,), daemon=True).start()
+
+    def update_buttons_thread(self, search_text):
+        """Filter tasks and synchronize buttons in the background."""
         tasks = self.tasks_manager.get_tasks()
-
-        # Filter tasks based on the search text
         filtered_tasks = [task for task in tasks if search_text in task["name"].lower()]
+        current_task_names = {task["name"] for task in filtered_tasks}
 
-        # Create the buttons in the UI thread
-        self.after(0, self.update_buttons_in_ui, filtered_tasks)
+        # Prepare lists of tasks to add or remove
+        tasks_to_add = [task for task in filtered_tasks if task["name"] not in self.task_buttons]
+        tasks_to_remove = [task_name for task_name in self.task_buttons if task_name not in current_task_names]
 
-    def update_buttons_in_ui(self, filtered_tasks):
+        # Update the UI in the main thread
+        self.after(0, self.update_buttons_in_ui, tasks_to_add, tasks_to_remove)
+
+    def update_buttons_in_ui(self, tasks_to_add, tasks_to_remove):
         """Update the task buttons in the main UI thread."""
-        for task in filtered_tasks:
+        # Determine the current state of buttons (disabled or normal)
+        button_state = "normal"
+        if self.task_buttons:
+            # Check the state of any existing button
+            button_state = list(self.task_buttons.values())[0].cget("state")
+
+        # Remove buttons for tasks that no longer exist
+        for task_name in tasks_to_remove:
+            self.task_buttons[task_name].destroy()
+            del self.task_buttons[task_name]
+
+        # Add buttons for new tasks
+        for task in tasks_to_add:
             task_name = task["name"]
             commands = task["commands"]
             if commands:
                 button = ctk.CTkButton(
                     self.button_frame,
                     text=task_name,
-                    command=lambda cmds=commands, name=task_name: self.run_commands(cmds, name)
+                    command=lambda cmds=commands, name=task_name: self.run_commands(cmds, name),
+                    state=button_state  # Set the state based on existing buttons
                 )
                 button.pack(pady=5, padx=10, fill=ctk.X)
+                self.task_buttons[task_name] = button
 
     def run_commands(self, args, name):
         threading.Thread(target=self.run_commands_thread, args=[args, name]).start()
@@ -103,13 +117,18 @@ class TaskRunnerFrame(ctk.CTkFrame):
         """Run a series of subprocesses with progress tracking and log output/errors."""
         self.disable_buttons()
 
+        # Ensure the task_logs directory exists
+        log_dir = "task_logs"
+        os.makedirs(log_dir, exist_ok=True)
+
         # Generate a unique log file name with a timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
-        log_file_path = f"{task_name_sanitize(name)}_{timestamp}.log"
+        log_file_path = f"{log_dir}/{task_name_sanitize(name)}_{timestamp}.log"
 
         try:
             with open(log_file_path, "w") as log_file:  # Open log file for writing
                 for i, command in enumerate(commands):
+                    time.sleep(30)
                     try:
                         # Run the command and capture output and errors
                         result = subprocess.run(
@@ -190,14 +209,14 @@ class TaskRunnerFrame(ctk.CTkFrame):
         text_widget.configure(state="disabled")  # Make the textbox read-only
         text_widget.pack(side="left", fill="both", expand=True)
 
-        # Add a scrollbar
-        scrollbar = ctk.CTkScrollbar(frame, command=text_widget.yview)
-        scrollbar.pack(side="right", fill="y")
-        text_widget.configure(yscrollcommand=scrollbar.set)
+        # # Add a scrollbar
+        # scrollbar = ctk.CTkScrollbar(frame, command=text_widget.yview)
+        # scrollbar.pack(side="right", fill="y")
+        # text_widget.configure(yscrollcommand=scrollbar.set)
 
-        # Add a Close button
-        close_button = ctk.CTkButton(log_window, text="Close", command=log_window.destroy)
-        close_button.pack(pady=10)
+        # # Add a Close button
+        # close_button = ctk.CTkButton(log_window, text="Close", command=log_window.destroy)
+        # close_button.pack(pady=10)
 
         # Wait for the popup to close
         log_window.wait_window()
@@ -209,12 +228,14 @@ class TaskRunnerFrame(ctk.CTkFrame):
             self.update_idletasks()
 
     def disable_buttons(self):
-        for button in self.button_frame.winfo_children():
+        """Disable all task buttons."""
+        for button in self.task_buttons.values():
             button.configure(state="disabled")
 
     def enable_buttons(self):
-        for button in self.button_frame.winfo_children():
+        """Enable all task buttons."""
+        for button in self.task_buttons.values():
             button.configure(state="normal")
 
     def on_show(self):
-       self.create_task_buttons()
+        self.update_task_buttons()
