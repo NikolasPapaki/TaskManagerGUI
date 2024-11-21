@@ -1,14 +1,14 @@
+import tkinter as tk
+import customtkinter as ctk
 import os
 import threading
-from os import times
-
-import customtkinter as ctk
-from tkinter import messagebox, Listbox
 import datetime
-
+from tkinter import messagebox
+from tkinter import ttk, messagebox
 
 class TaskLogsFrame(ctk.CTkFrame):
     ORDER = 96
+
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
@@ -27,9 +27,10 @@ class TaskLogsFrame(ctk.CTkFrame):
         search_entry = ctk.CTkEntry(self, textvariable=self.search_var, placeholder_text="Search tasks")
         search_entry.pack(pady=10, padx=10, fill=ctk.X)
 
-        # Listbox (using tkinter Listbox)
-        self.logs_listbox = Listbox(self, height=10)  # Using the tkinter Listbox
-        self.logs_listbox.pack(expand=True, fill="both", padx=10, pady=10)
+        # Treeview widget (replacing Listbox)
+        self.logs_treeview = ttk.Treeview(self, columns=("Log File",), show="headings", height=10)
+        self.logs_treeview.heading("Log File", text="Log File")
+        self.logs_treeview.pack(expand=True, fill="both", padx=10, pady=10)
 
         # Initialize the filtered_log_files list
         self.filtered_log_files = []
@@ -37,8 +38,13 @@ class TaskLogsFrame(ctk.CTkFrame):
         # Load log files from the task_logs directory
         self.load_logs()
 
-        # Bind double-click event to show log content
-        self.logs_listbox.bind("<Double-1>", self.on_log_file_double_click)
+        # Bind right-click to show context menu
+        self.logs_treeview.bind("<Button-3>", self.show_context_menu)
+
+        # Create the context menu using tkinter.Menu
+        self.context_menu = tk.Menu(self, tearoff=False)
+        self.context_menu.add_command(label="View Log", command=self.view_log)
+        self.context_menu.add_command(label="Delete Log", command=self.delete_log)
 
     def load_logs(self):
         """Load log files from the task_logs directory."""
@@ -57,9 +63,9 @@ class TaskLogsFrame(ctk.CTkFrame):
         # Initialize the filtered log files
         self.filtered_log_files = self.log_files
 
-        # Insert log file names into the listbox
+        # Insert log file names into the treeview
         if self.filtered_log_files:
-            self.update_log_listbox()
+            self.update_log_treeview()
         else:
             messagebox.showinfo("No Logs", "No log files found in the 'task_logs' directory.")
 
@@ -79,11 +85,12 @@ class TaskLogsFrame(ctk.CTkFrame):
             print(f"Error extracting timestamp from {log_file_name}: {e}")
             return datetime.datetime.min  # Return a very old date in case of error
 
-    def update_log_listbox(self):
-        """Update the listbox with log files."""
-        self.logs_listbox.delete(0, "end")  # Clear the existing list
+    def update_log_treeview(self):
+        """Update the treeview with log files."""
+        for row in self.logs_treeview.get_children():
+            self.logs_treeview.delete(row)  # Clear existing entries
         for log_file in self.filtered_log_files:
-            self.logs_listbox.insert("end", log_file)
+            self.logs_treeview.insert("", "end", values=(log_file,))  # Insert log files into the treeview
 
     def filter_logs(self, *args):
         """Filter log files based on the search box input."""
@@ -112,20 +119,43 @@ class TaskLogsFrame(ctk.CTkFrame):
             if cleaned_search_term in f.replace("_", " ").lower()  # Remove underscores for comparison
         ]
 
-        # Update the listbox with the filtered files (must be done on the main thread)
+        # Update the treeview with the filtered files (must be done on the main thread)
         self.after(0, self.update_filtered_list, filtered_files)
 
     def update_filtered_list(self, filtered_files):
-        """Update the listbox with the filtered files."""
+        """Update the treeview with the filtered files."""
         self.filtered_log_files = filtered_files
-        self.update_log_listbox()
+        self.update_log_treeview()
 
-    def on_log_file_double_click(self, event):
-        """Handle double-click on a log file in the listbox and show the log content in a popup."""
-        selected_item = self.logs_listbox.curselection()  # Get the selected item (log file)
+    def show_context_menu(self, event):
+        """Show the context menu on right-click."""
+        # Identify the item at the row where the right-click occurred
+        item_id = self.logs_treeview.identify_row(event.y)
+
+        try:
+            if item_id:  # If an item is identified (clicked)
+                # Select the item programmatically
+                self.logs_treeview.selection_set(item_id)
+
+                # Get the selected item after selecting it
+                selected_item = self.logs_treeview.selection()[0]  # We expect one selected item
+
+                # Show the context menu
+                if selected_item:
+                    self.context_menu.post(event.x_root, event.y_root)  # Show the context menu
+                else:
+                    print("No item selected, context menu will not be shown.")
+            else:
+                print("No item identified at the click location.")
+        except Exception as e:
+            print(f"Error showing context menu: {e}")
+
+    def view_log(self):
+        """View the log file content in a popup when selected from the context menu."""
+        selected_item = self.logs_treeview.selection()  # Get the selected item
 
         if selected_item:
-            log_file_name = self.logs_listbox.get(selected_item)  # Get the log file name
+            log_file_name = self.logs_treeview.item(selected_item[0])["values"][0]  # Get the log file name
             log_file_path = os.path.join("task_logs", log_file_name)  # Build the full path to the log file
 
             if os.path.exists(log_file_path):
@@ -182,6 +212,25 @@ class TaskLogsFrame(ctk.CTkFrame):
         """Open the directory containing the log file in Explorer."""
         directory = os.path.dirname(log_file_path)
         os.startfile(directory)  # Open the directory in Windows Explorer
+
+    def delete_log(self):
+        """Delete the selected log file after confirmation."""
+        selected_item = self.logs_treeview.selection()  # Get the selected item
+        if not selected_item:
+            messagebox.showerror("Error", "No log file selected.")
+            return
+
+        log_file_name = self.logs_treeview.item(selected_item, "values")[0]  # Get the log file name
+        log_file_path = os.path.join("task_logs", log_file_name)  # Build the full path to the log file
+
+        # Show a confirmation dialog before deleting
+        if messagebox.askyesno("Confirm Deletion", f"Are you sure you want to delete '{log_file_name}'? This action cannot be undone!"):
+            try:
+                os.remove(log_file_path)  # Delete the log file
+                self.filtered_log_files.remove(log_file_name)  # Remove from the filtered list
+                self.update_log_treeview()  # Update the Treeview
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to delete log file: {e}")
 
     def on_show(self):
         self.load_logs()
