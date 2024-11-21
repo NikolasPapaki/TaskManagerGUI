@@ -128,7 +128,6 @@ class TaskRunnerFrame(ctk.CTkFrame):
         try:
             with open(log_file_path, "w") as log_file:  # Open log file for writing
                 for i, command in enumerate(commands):
-                    time.sleep(30)
                     try:
                         # Run the command and capture output and errors
                         result = subprocess.run(
