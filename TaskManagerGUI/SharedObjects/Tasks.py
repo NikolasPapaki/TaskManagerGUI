@@ -37,6 +37,15 @@ class Tasks:
         self.set_modified()  # Mark as modified and trigger callback
         self.save_tasks()
 
+    def rename_task(self, old_name, new_name):
+        """Rename a task in the task manager."""
+        for task in self.get_tasks():
+            if task["name"] == old_name:
+                task["name"] = new_name
+                self.set_modified()  # Mark as modified and trigger callback
+                self.save_tasks()
+                break
+
     def add_command(self, task_name, command_name):
         """Adds a new command to the task with the given task_name."""
         task_found = False

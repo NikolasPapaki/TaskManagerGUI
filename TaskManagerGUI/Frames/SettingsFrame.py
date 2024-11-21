@@ -77,15 +77,15 @@ class SettingsFrame(ctk.CTkFrame):
         self.password_entry = ctk.CTkEntry(self.password_entry_frame, width=300, show="*")
         self.password_entry.pack(side="left", pady=5)
 
-        # Debugger Root Directory frame
-        debugger_frame = ctk.CTkFrame(body_frame)
-        debugger_frame.pack(pady=(10, 5), padx=10, fill="x")
-
-        # Debugger Root Directory label
-        debugger_label = ctk.CTkLabel(debugger_frame, text="Debugger Root Directory:", font=("Arial", 12))
-        debugger_label.pack(pady=10, padx=10, anchor='w')
-
-        # Debugger Root Directory Entry
+        # # Debugger Root Directory frame
+        # debugger_frame = ctk.CTkFrame(body_frame)
+        # debugger_frame.pack(pady=(10, 5), padx=10, fill="x")
+        #
+        # # Debugger Root Directory label
+        # debugger_label = ctk.CTkLabel(debugger_frame, text="Debugger Root Directory:", font=("Arial", 12))
+        # debugger_label.pack(pady=10, padx=10, anchor='w')
+        #
+        # # Debugger Root Directory Entry
         # self.debugger_root_entry_frame = ctk.CTkFrame(debugger_frame)
         # self.debugger_root_entry_frame.pack(pady=(5,15), padx=20, fill="x")
         # ctk.CTkLabel(self.debugger_root_entry_frame, text="Path").pack(side="left", anchor="w", padx=10)

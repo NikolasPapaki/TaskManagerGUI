@@ -257,7 +257,6 @@ class JenkinsFrame(ctk.CTkFrame):
         return None
 
     def load_credential_data(self):
-        print(self.settings_manager.settings)
         """Load the username and encrypted password from settings.json and decrypt the password."""
         if "username" in self.settings_manager.settings:
             self.username = self.settings_manager.get("username")

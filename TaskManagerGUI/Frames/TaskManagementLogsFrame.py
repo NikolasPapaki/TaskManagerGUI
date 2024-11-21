@@ -29,11 +29,11 @@ class TaskManagementLogsFrame(ctk.CTkFrame):
         self.log_tree.bind("<<TreeviewSelect>>", self.on_log_select)
 
     def setup_treeview(self):
-        # Create the Treeview with hidden old_value and new_value columns
+        """Sets up the Treeview widget to display logs."""
         self.log_tree = ttk.Treeview(self, columns=("timestamp", "action", "task_name", "old_value", "new_value"),
-                                     show="headings", height=5)  # Adjust height here
+                                     show="headings", height=5)
 
-        # Define the column headings (only show the relevant columns)
+        # Define the column headings
         self.log_tree.heading("timestamp", text="Timestamp")
         self.log_tree.heading("action", text="Action")
         self.log_tree.heading("task_name", text="Task Name")
@@ -44,8 +44,8 @@ class TaskManagementLogsFrame(ctk.CTkFrame):
         self.log_tree.column("task_name", width=150)
 
         # Set the old_value and new_value columns to be hidden
-        self.log_tree.column("old_value", width=0, stretch=tk.NO)  # Width 0 to hide
-        self.log_tree.column("new_value", width=0, stretch=tk.NO)  # Width 0 to hide
+        self.log_tree.column("old_value", width=0, stretch=tk.NO)
+        self.log_tree.column("new_value", width=0, stretch=tk.NO)
 
         # Add scrollbar
         scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.log_tree.yview)
@@ -65,19 +65,14 @@ class TaskManagementLogsFrame(ctk.CTkFrame):
                     if isinstance(logs, list):
                         for log in logs:
                             # Ensure the log entry has the correct structure
-                            if isinstance(log, dict) and all(
-                                    k in log for k in ["timestamp", "action", "task_name", "old_value", "new_value"]):
-
-                                # Get the values for the Treeview
+                            if isinstance(log, dict) and all(k in log for k in ["timestamp", "action", "task_name", "old_value", "new_value"]):
                                 timestamp = log["timestamp"]
                                 action = log["action"]
                                 task_name = log["task_name"]
                                 old_value = log.get("old_value", "")
                                 new_value = log.get("new_value", "")
 
-                                # Insert the values into the Treeview
-                                self.log_tree.insert("", tk.END,
-                                                     values=(timestamp, action, task_name, old_value, new_value))
+                                self.log_tree.insert("", tk.END, values=(timestamp, action, task_name, old_value, new_value))
                             else:
                                 print("Invalid log entry structure:", log)
                     else:
@@ -93,7 +88,6 @@ class TaskManagementLogsFrame(ctk.CTkFrame):
         selected_item = self.log_tree.selection()
         if selected_item:
             item_data = self.log_tree.item(selected_item[0])['values']
-            # Update labels with old and new values
             if len(item_data) >= 5:
                 self.old_value_label.configure(text=f"Old Value: {item_data[3]}")
                 self.new_value_label.configure(text=f"New Value: {item_data[4]}")

@@ -6,6 +6,7 @@ from SharedObjects import Tasks  # Import the Tasks shared object
 from custom_widgets import CustomInputDialog
 import json
 import os
+from Frames.TaskManagementLogsFrame import TaskManagementLogsFrame
 
 
 class TaskManagerFrame(ctk.CTkFrame):
@@ -53,12 +54,19 @@ class TaskManagerFrame(ctk.CTkFrame):
         if item_id:
             if self.tree.parent(item_id):
                 self.context_menu.add_command(label="Edit Command", command=lambda: self.edit_command(item_id))
+                self.context_menu.add_separator()
                 self.context_menu.add_command(label="Delete Command", command=lambda: self.delete_command(item_id))
             else:
                 self.context_menu.add_command(label="Add Command", command=lambda: self.add_command(item_id))
+                self.context_menu.add_separator()
+                self.context_menu.add_command(label="Rename Task", command=lambda: self.rename_task(item_id))
+                self.context_menu.add_separator()
                 self.context_menu.add_command(label="Delete Task", command=lambda: self.delete_task(item_id))
+
         else:
             self.context_menu.add_command(label="Add New Task", command=self.add_task)
+            self.context_menu.add_separator()
+            self.context_menu.add_command(label="View Logs", command=self.view_taskmanager_logs)  # Add view logs option
 
         self.context_menu.post(event.x_root, event.y_root)
 
@@ -73,10 +81,37 @@ class TaskManagerFrame(ctk.CTkFrame):
         """Add a new task."""
         input_dialog = CustomInputDialog(title="Enter Task Name", initial_value="", parent=self)
         task_name = input_dialog.show()
+
         if task_name:
+            task_name = task_name.strip()
+            # Check if the task name already exists
+            if any(task["name"] == task_name for task in self.tasks_manager.get_tasks()):
+                messagebox.showerror("Error", "Task names must be unique.")
+                return
+
+            # Add the task if the name is unique
             self.tasks_manager.add_task(task_name)
             self.tree.insert("", tk.END, text=task_name, values=["Task"])
             self.log_action("Added task", task_name)
+
+    def rename_task(self, item_id):
+        """Rename an existing task."""
+        task_name = self.tree.item(item_id, "text")
+
+        # Prompt the user to input a new name
+        input_dialog = CustomInputDialog(title="Enter New Task Name", initial_value=task_name, parent=self)
+        new_task_name = input_dialog.show()
+
+        if new_task_name:
+            # Check if the new task name already exists
+            if any(task["name"] == new_task_name for task in self.tasks_manager.get_tasks()):
+                messagebox.showerror("Error", "Task names must be unique.")
+                return
+
+            # Update the task name in the tasks_manager and tree
+            self.tasks_manager.rename_task(task_name, new_task_name)
+            self.tree.item(item_id, text=new_task_name)  # Update the tree with the new name
+            self.log_action("Renamed task", f"{task_name} -> {new_task_name}")
 
     def add_command(self, task_id):
         input_dialog = CustomInputDialog(title="Enter Command", initial_value="", parent=self)
@@ -138,5 +173,42 @@ class TaskManagerFrame(ctk.CTkFrame):
         with open("task_logs.json", "w") as log_file:
             json.dump(self.logs, log_file, indent=4)
 
-    def on_show(self):
-       self.tasks_manager.load_tasks()
+    def view_taskmanager_logs(self):
+        """Show the TaskManager logs in a new window, centered on the main window."""
+        # Create a new top-level window
+        logs_window = ctk.CTkToplevel(self.parent)
+
+        # Get the main window's dimensions and position
+        main_window_width = self.parent.winfo_width()
+        main_window_height = self.parent.winfo_height()
+        main_window_x = self.parent.winfo_x()
+        main_window_y = self.parent.winfo_y()
+
+        # Set the new window size to be the same as the main window
+        logs_window.geometry(f"{main_window_width}x{main_window_height}")
+
+        # Calculate the position to center the new window on the main window
+        position_x = main_window_x + (main_window_width // 2) - (main_window_width // 2)
+        position_y = main_window_y + (main_window_height // 2) - (main_window_height // 2)
+
+        # Apply the position to the new window
+        logs_window.geometry(f"{main_window_width}x{main_window_height}+{position_x}+{position_y}")
+
+        # Make sure the window stays on top of the main window
+        logs_window.attributes("-topmost", True)
+
+        # Grab the focus for the logs window and block interaction with the main window
+        logs_window.grab_set()  # This prevents interaction with the main window
+
+        # Create and pack the TaskManagementLogsFrame
+        logs_frame = TaskManagementLogsFrame(logs_window)  # Use the TaskManagementLogsFrame
+        logs_frame.pack(expand=True, fill=ctk.BOTH)
+
+        # When the popup is closed, release the grab and allow interaction with the main window
+        logs_window.protocol("WM_DELETE_WINDOW", lambda: self.on_logs_window_close(logs_window))
+
+    def on_logs_window_close(self, logs_window):
+        """Called when the TaskManager logs window is closed."""
+        # Release the grab to allow interaction with the main window again
+        logs_window.grab_release()  # Allow interaction with the main window again
+        logs_window.destroy()  # Destroy the logs window
