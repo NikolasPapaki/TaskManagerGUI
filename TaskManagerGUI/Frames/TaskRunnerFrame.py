@@ -76,14 +76,26 @@ class TaskRunnerFrame(ctk.CTkFrame):
         filtered_tasks = [task for task in tasks if search_text in task["name"].lower()]
         current_task_names = {task["name"] for task in filtered_tasks}
 
-        # Prepare lists of tasks to add or remove
+        # Prepare lists of tasks to add, remove, or update
         tasks_to_add = [task for task in filtered_tasks if task["name"] not in self.task_buttons]
         tasks_to_remove = [task_name for task_name in self.task_buttons if task_name not in current_task_names]
+        tasks_to_update = [task for task in filtered_tasks if
+                           task["name"] in self.task_buttons and task["commands"] != self.get_current_commands(
+                               task["name"])]
 
         # Update the UI in the main thread
-        self.after(0, self.update_buttons_in_ui, tasks_to_add, tasks_to_remove)
+        self.after(0, self.update_buttons_in_ui, tasks_to_add, tasks_to_remove, tasks_to_update)
 
-    def update_buttons_in_ui(self, tasks_to_add, tasks_to_remove):
+    def get_current_commands(self, task_name):
+        """Get the current commands associated with a task button."""
+        if task_name in self.task_buttons:
+            # Retrieve the command for the task button, assuming the button's command is set as a lambda function
+            button_command = self.task_buttons[task_name].cget('command')
+            return button_command.__defaults__[
+                0] if button_command.__defaults__ else []  # Get the default 'cmds' value from the lambda
+        return []
+
+    def update_buttons_in_ui(self, tasks_to_add, tasks_to_remove, tasks_to_update):
         """Update the task buttons in the main UI thread."""
         # Determine the current state of buttons (disabled or normal)
         button_state = "normal"
@@ -109,6 +121,16 @@ class TaskRunnerFrame(ctk.CTkFrame):
                 )
                 button.pack(pady=5, padx=10, fill=ctk.X)
                 self.task_buttons[task_name] = button
+
+        # Update buttons for tasks with changed commands
+        for task in tasks_to_update:
+            task_name = task["name"]
+            commands = task["commands"]
+            if commands:
+                # Update the command associated with the button
+                self.task_buttons[task_name].configure(
+                    command=lambda cmds=commands, name=task_name: self.run_commands(cmds, name)
+                )
 
     def run_commands(self, args, name):
         threading.Thread(target=self.run_commands_thread, args=[args, name]).start()
