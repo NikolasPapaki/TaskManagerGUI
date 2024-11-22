@@ -81,8 +81,12 @@ class TaskManagerFrame(ctk.CTkFrame):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # Populate the Treeview with updated tasks
-        for task in self.tasks_manager.get_tasks():
+        # Sort tasks alphabetically by their name
+        tasks = self.tasks_manager.get_tasks()
+        tasks_sorted = sorted(tasks, key=lambda task: task["name"].lower())
+
+        # Populate the Treeview with sorted tasks
+        for task in tasks_sorted:
             task_id = self.tree.insert("", tk.END, text=task["name"], values=["Task"])
             for command in task["commands"]:
                 self.tree.insert(task_id, tk.END, text=command, values=["Command"])
@@ -234,3 +238,4 @@ class TaskManagerFrame(ctk.CTkFrame):
                 self.log_action("Imported tasks from file", file_path)
         else:
             messagebox.showerror("Invalid File", "Only JSON files are allowed.")
+

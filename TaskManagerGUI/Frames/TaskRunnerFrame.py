@@ -54,16 +54,6 @@ class TaskRunnerFrame(ctk.CTkFrame):
             self.last_search_time = current_time
             self.update_task_buttons()
 
-    def create_task_buttons(self):
-        """Create task buttons based on the current tasks and search filter."""
-        for widget in self.button_frame.winfo_children():
-            widget.destroy()
-
-        search_text = self.search_var.get().lower()
-
-        # Use a background thread to update buttons
-        threading.Thread(target=self.create_buttons_thread, args=(search_text,)).start()
-
     def update_task_buttons(self):
         """Update task buttons using a background thread."""
         search_text = self.search_var.get().lower()
@@ -74,12 +64,16 @@ class TaskRunnerFrame(ctk.CTkFrame):
         """Filter tasks and synchronize buttons in the background."""
         tasks = self.tasks_manager.get_tasks()
         filtered_tasks = [task for task in tasks if search_text in task["name"].lower()]
-        current_task_names = {task["name"] for task in filtered_tasks}
+
+        # Sort tasks alphabetically by their name
+        filtered_tasks_sorted = sorted(filtered_tasks, key=lambda task: task["name"].lower())
+
+        current_task_names = {task["name"] for task in filtered_tasks_sorted}
 
         # Prepare lists of tasks to add, remove, or update
-        tasks_to_add = [task for task in filtered_tasks if task["name"] not in self.task_buttons]
+        tasks_to_add = [task for task in filtered_tasks_sorted if task["name"] not in self.task_buttons]
         tasks_to_remove = [task_name for task_name in self.task_buttons if task_name not in current_task_names]
-        tasks_to_update = [task for task in filtered_tasks if
+        tasks_to_update = [task for task in filtered_tasks_sorted if
                            task["name"] in self.task_buttons and task["commands"] != self.get_current_commands(
                                task["name"])]
 
