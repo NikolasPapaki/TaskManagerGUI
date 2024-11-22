@@ -5,6 +5,7 @@ import threading
 import datetime
 from tkinter import messagebox
 from tkinter import ttk, messagebox
+from tkcalendar import DateEntry
 
 class TaskLogsFrame(ctk.CTkFrame):
     ORDER = 96
@@ -18,6 +19,7 @@ class TaskLogsFrame(ctk.CTkFrame):
         title_label = ctk.CTkLabel(self, text="Task Logs", font=("Arial", 24))
         title_label.pack(pady=10)
 
+        # Search by name
         search_label = ctk.CTkLabel(self, text="Search tasks by name:", font=("Arial", 14))
         search_label.pack(pady=5, padx=10, anchor="w")
 
@@ -27,10 +29,52 @@ class TaskLogsFrame(ctk.CTkFrame):
         search_entry = ctk.CTkEntry(self, textvariable=self.search_var, placeholder_text="Search tasks")
         search_entry.pack(pady=10, padx=10, fill=ctk.X)
 
-        # Treeview widget (replacing Listbox)
-        self.logs_treeview = ttk.Treeview(self, columns=("Log File",), show="headings", height=10,
-                                          selectmode="extended")
-        self.logs_treeview.heading("Log File", text="Log File")
+        # Date range filtering
+        date_frame = ctk.CTkFrame(self)
+        date_frame.pack(pady=10, padx=10, fill=ctk.X)
+
+        # Start Date
+        start_date_label = ctk.CTkLabel(date_frame, text="Start Date:", font=("Arial", 12))
+        start_date_label.grid(row=0, column=0, padx=(10, 5))
+
+        self.start_date = DateEntry(date_frame, width=12, background='darkblue',
+                                    foreground='white', borderwidth=2, date_pattern="dd/MM/yyyy")
+        self.start_date.grid(row=0, column=1, padx=5)
+
+        # End Date
+        end_date_label = ctk.CTkLabel(date_frame, text="End Date:", font=("Arial", 12))
+        end_date_label.grid(row=0, column=2, padx=(20, 5))
+
+        self.end_date = DateEntry(date_frame, width=12, background='darkblue',
+                                  foreground='white', borderwidth=2, date_pattern="dd/MM/yyyy")
+        self.end_date.grid(row=0, column=3, padx=5)
+
+        # Apply date range filter button
+        date_filter_button = ctk.CTkButton(date_frame, text="Apply Date Filter", command=self.filter_logs)
+        date_filter_button.grid(row=0, column=4, padx=(20, 10))
+
+        # Treeview widget
+        self.logs_treeview = ttk.Treeview(
+            self,
+            columns=("Log File", "File Size", "Creation Date"),
+            show="headings",
+            height=10,
+            selectmode="extended",
+        )
+
+        # Define column headings
+        # Bind a sorting function to the column headers
+        self.logs_treeview.heading("Log File", text="Log File", command=lambda: self.sort_treeview("Log File", False))
+        self.logs_treeview.heading("File Size", text="File Size",
+                                   command=lambda: self.sort_treeview("File Size", False))
+        self.logs_treeview.heading("Creation Date", text="Creation Date",
+                                   command=lambda: self.sort_treeview("Creation Date", False))
+
+        # Adjust column widths
+        self.logs_treeview.column("Log File", width=300)
+        self.logs_treeview.column("File Size", width=100, anchor="center")
+        self.logs_treeview.column("Creation Date", width=150, anchor="center")
+
         self.logs_treeview.pack(expand=True, fill="both", padx=10, pady=10)
 
         # Initialize the filtered_log_files list
@@ -42,7 +86,8 @@ class TaskLogsFrame(ctk.CTkFrame):
         # Bind right-click to show context menu
         self.logs_treeview.bind("<Button-3>", self.show_context_menu)
 
-        # Create the context menu using tkinter.Menu
+
+        # Create the context menu
         self.context_menu = tk.Menu(self, tearoff=False)
 
     def load_logs(self):
@@ -54,10 +99,20 @@ class TaskLogsFrame(ctk.CTkFrame):
             return
 
         # List all files in the directory and filter for .log files
-        self.log_files = [f for f in os.listdir(logs_dir) if f.endswith(".log")]
+        self.log_files = [
+            {
+                "name": f,
+                "size": os.path.getsize(os.path.join(logs_dir, f)),
+                "creation_date": datetime.datetime.fromtimestamp(
+                    os.path.getctime(os.path.join(logs_dir, f))
+                ),
+            }
+            for f in os.listdir(logs_dir)
+            if f.endswith(".log")
+        ]
 
-        # Sort the log files by timestamp (extract timestamp from filename)
-        self.log_files.sort(key=self.extract_timestamp, reverse=True)
+        # Sort the log files by timestamp (extracted from the filename)
+        self.log_files.sort(key=lambda x: self.extract_timestamp(x["name"]), reverse=True)
 
         # Initialize the filtered log files
         self.filtered_log_files = self.log_files
@@ -66,63 +121,81 @@ class TaskLogsFrame(ctk.CTkFrame):
         if self.filtered_log_files:
             self.update_log_treeview()
 
+    def filter_logs(self, *args):
+        if self.filter_timer:
+            self.after_cancel(self.filter_timer)
+
+        self.filter_timer = self.after(500, self.apply_filter)
+
+    def apply_filter(self):
+        search_term = self.search_var.get().lower()
+        start_date = self.start_date.get_date() if self.start_date.get() else None
+        end_date = self.end_date.get_date() if self.end_date.get() else None
+
+        filter_thread = threading.Thread(target=self.perform_filter, args=(search_term, start_date, end_date))
+        filter_thread.start()
+
+    def perform_filter(self, search_term, start_date, end_date):
+        def match_date(file_info):
+            """Check if the log file matches the selected date range."""
+            try:
+                # Extract timestamp from file name (assuming it's in the 'Log File' field)
+                timestamp = self.extract_timestamp(file_info["name"])  # Adjust for correct key
+                if not timestamp:
+                    return False
+
+                # Convert timestamp to a date object
+                file_date = timestamp.date()
+
+                # Compare dates
+                if start_date and file_date < start_date:
+                    return False
+                if end_date and file_date > end_date:
+                    return False
+
+                return True
+            except Exception as e:
+                print(f"Error in match_date: {e}")
+                return False
+
+
+        filtered_files = [
+            f for f in self.log_files
+            if search_term in f["name"].replace("_", " ").lower() and match_date(f)
+        ]
+
+        self.after(0, self.update_filtered_list, filtered_files)
+
     def extract_timestamp(self, log_file_name):
-        """Extract the timestamp from the log file name."""
         try:
-            # Remove the '.log' extension
-            log_file_name_without_extension = log_file_name[:-4]  # Remove the last 4 characters ('.log')
-
-            # The timestamp is always the part after the task name and before the file extension
-            timestamp_str = log_file_name_without_extension.split('_')[-2:]  # Take the last two parts
-            timestamp = "_".join(timestamp_str)  # Join back to get the full timestamp
-
-            # Parse the timestamp into a datetime object for comparison
-            return datetime.datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+            log_file_name_without_extension = log_file_name[:-4]
+            timestamp_str = "_".join(log_file_name_without_extension.split('_')[-2:])
+            return datetime.datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
         except Exception as e:
-            print(f"Error extracting timestamp from {log_file_name}: {e}")
-            return datetime.datetime.min  # Return a very old date in case of error
+            print(f"Error extracting timestamp: {e}")
+            return datetime.datetime.min
+
+    def update_filtered_list(self, filtered_files):
+        self.filtered_log_files = filtered_files
+        self.update_log_treeview()
 
     def update_log_treeview(self):
         """Update the treeview with log files."""
+        # Clear existing entries
         for row in self.logs_treeview.get_children():
-            self.logs_treeview.delete(row)  # Clear existing entries
+            self.logs_treeview.delete(row)
+
+        # Populate the Treeview with log files
         for log_file in self.filtered_log_files:
-            self.logs_treeview.insert("", "end", values=(log_file,))  # Insert log files into the treeview
-
-    def filter_logs(self, *args):
-        """Filter log files based on the search box input."""
-        if self.filter_timer:
-            self.after_cancel(self.filter_timer)  # Cancel the previous timer if any
-
-        # Start a new timer to delay the filtering
-        self.filter_timer = self.after(500, self.apply_filter)  # Delay for 500ms
-
-    def apply_filter(self):
-        """Apply the filtering logic on a separate thread to keep the UI responsive."""
-        search_term = self.search_var.get().lower()  # Get the search term (lowercase)
-
-        # Run the filtering logic in a separate thread to avoid blocking the UI
-        filter_thread = threading.Thread(target=self.perform_filter, args=(search_term,))
-        filter_thread.start()
-
-    def perform_filter(self, search_term):
-        """Perform the filtering of log files in a background thread."""
-        # Remove underscores from the search term
-        cleaned_search_term = search_term.replace("_", " ").lower()
-
-        # Filter log files by removing underscores and performing a case-insensitive match
-        filtered_files = [
-            f for f in self.log_files
-            if cleaned_search_term in f.replace("_", " ").lower()  # Remove underscores for comparison
-        ]
-
-        # Update the treeview with the filtered files (must be done on the main thread)
-        self.after(0, self.update_filtered_list, filtered_files)
-
-    def update_filtered_list(self, filtered_files):
-        """Update the treeview with the filtered files."""
-        self.filtered_log_files = filtered_files
-        self.update_log_treeview()
+            self.logs_treeview.insert(
+                "",
+                "end",
+                values=(
+                    log_file["name"],
+                    f"{log_file['size'] / 1024:.2f} KB",  # Convert size to KB
+                    log_file["creation_date"].strftime("%d/%m/%Y %H:%M:%S"),
+                ),
+            )
 
     def show_context_menu(self, event):
         """Show the context menu on right-click."""
@@ -259,6 +332,33 @@ class TaskLogsFrame(ctk.CTkFrame):
                 self.update_log_treeview()  # Update the Treeview
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to delete log file: {e}")
+
+    def sort_treeview(self, column, reverse):
+        """Sort the Treeview by the specified column."""
+        # Retrieve all rows from the Treeview
+        rows = [
+            (self.logs_treeview.set(row_id, column), row_id)
+            for row_id in self.logs_treeview.get_children()
+        ]
+
+        # Sort the rows based on the column's data type
+        if column == "File Size":
+            # Convert file size to float for sorting
+            rows.sort(key=lambda x: float(x[0].replace(" KB", "")), reverse=reverse)
+        elif column == "Creation Date":
+            # Convert date string to datetime for sorting
+            rows.sort(key=lambda x: datetime.datetime.strptime(x[0], "%d/%m/%Y %H:%M:%S"), reverse=reverse)
+        else:
+            # Default string sorting for "Log File"
+            rows.sort(key=lambda x: x[0].lower(), reverse=reverse)
+
+        # Rearrange rows in the Treeview
+        for index, (_, row_id) in enumerate(rows):
+            self.logs_treeview.move(row_id, "", index)
+
+        # Reverse the sorting order for the next click
+        self.logs_treeview.heading(column, command=lambda: self.sort_treeview(column, not reverse))
+
 
     def on_show(self):
         self.load_logs()
