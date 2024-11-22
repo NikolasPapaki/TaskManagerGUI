@@ -7,13 +7,14 @@ from custom_widgets import CustomInputDialog
 import json
 import os
 from Frames.TaskManagementLogsFrame import TaskManagementLogsFrame
-
+from tkinterdnd2 import TkinterDnD, DND_FILES  # Import drag-and-drop support
 
 class TaskManagerFrame(ctk.CTkFrame):
     ORDER = 3
 
-    def __init__(self, parent):
+    def __init__(self, parent, main_window):
         super().__init__(parent)
+        self.main_window = main_window
         self.parent = parent
         self.logs = self.load_logs()
 
@@ -37,6 +38,10 @@ class TaskManagerFrame(ctk.CTkFrame):
         # Context menu
         self.context_menu = tk.Menu(self, tearoff=0)
         self.tree.bind("<Button-3>", self.show_context_menu)
+
+        # Register the frame itself as a drop target
+        self.drop_target_register(DND_FILES)
+        self.dnd_bind('<<Drop>>', self.on_drop)
 
     def load_logs(self):
         """Load task logs from file."""
@@ -72,6 +77,11 @@ class TaskManagerFrame(ctk.CTkFrame):
 
     def display_tasks(self):
         """Display tasks in the treeview widget."""
+        # Clear the Treeview
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        # Populate the Treeview with updated tasks
         for task in self.tasks_manager.get_tasks():
             task_id = self.tree.insert("", tk.END, text=task["name"], values=["Task"])
             for command in task["commands"]:
@@ -212,3 +222,15 @@ class TaskManagerFrame(ctk.CTkFrame):
         # Release the grab to allow interaction with the main window again
         logs_window.grab_release()  # Allow interaction with the main window again
         logs_window.destroy()  # Destroy the logs window
+
+    def on_drop(self, event):
+        """Handle dropped files."""
+        file_path = event.data
+        if file_path.endswith('.json'):
+            with open(file_path, 'r') as json_file:
+                new_tasks = json.load(json_file)
+                self.tasks_manager.add_bulk_tasks(new_tasks)
+                self.display_tasks()
+                self.log_action("Imported tasks from file", file_path)
+        else:
+            messagebox.showerror("Invalid File", "Only JSON files are allowed.")

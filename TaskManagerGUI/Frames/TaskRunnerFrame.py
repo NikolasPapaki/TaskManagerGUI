@@ -16,7 +16,7 @@ def task_name_sanitize(task_name) -> str:
 class TaskRunnerFrame(ctk.CTkFrame):
     ORDER = 2
 
-    def __init__(self, parent):
+    def __init__(self, parent, main_window):
         super().__init__(parent)
         self.parent = parent
 

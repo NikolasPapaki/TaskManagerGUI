@@ -24,7 +24,7 @@ requests.utils.DEFAULT_CA_BUNDLE_PATH = certifi_path
 class ApiRequestFrame(ctk.CTkFrame):
     ORDER = 6
 
-    def __init__(self, parent):
+    def __init__(self, parent, main_window):
         super().__init__(parent)
         self.history_file = 'api_history.json'
 

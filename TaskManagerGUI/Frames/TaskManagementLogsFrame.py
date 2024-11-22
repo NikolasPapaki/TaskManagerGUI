@@ -8,7 +8,7 @@ import json
 class TaskManagementLogsFrame(ctk.CTkFrame):
     ORDER = 97
 
-    def __init__(self, parent):
+    def __init__(self, parent, main_window):
         super().__init__(parent)
         self.parent = parent
 

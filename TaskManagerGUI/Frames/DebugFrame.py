@@ -9,7 +9,7 @@ from SharedObjects import Settings
 
 class DebugFrame(ctk.CTkFrame):
     ORDER = 4
-    def __init__(self, parent):
+    def __init__(self, parent, main_window):
         super().__init__(parent)
 
         # Load the settings to get the root directory

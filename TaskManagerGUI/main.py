@@ -1,8 +1,8 @@
 import customtkinter as ctk
 from Interface import ApplicationInterface
+from tkinterdnd2 import TkinterDnD, DND_FILES
 
-
-class MyApp(ctk.CTk):
+class MyApp(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
 

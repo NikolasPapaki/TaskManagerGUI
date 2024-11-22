@@ -31,9 +31,9 @@ def load_key():
 
 class JenkinsFrame(ctk.CTkFrame):
     ORDER = 5
-    def __init__(self, master):
-        super().__init__(master)
-        self.master = master
+    def __init__(self, parent, main_window):
+        super().__init__(parent)
+        self.parent = parent
         self.settings_manager = Settings()
         self.build_history = []
 

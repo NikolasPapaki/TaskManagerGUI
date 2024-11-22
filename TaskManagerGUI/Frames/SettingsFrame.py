@@ -22,7 +22,7 @@ def load_or_generate_key():
 class SettingsFrame(ctk.CTkFrame):
     ORDER = 98
 
-    def __init__(self, parent):
+    def __init__(self, parent, main_window):
         super().__init__(parent)
         self.updater = Update_module()
         self.settings_manager = Settings()

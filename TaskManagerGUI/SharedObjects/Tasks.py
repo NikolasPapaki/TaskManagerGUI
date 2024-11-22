@@ -1,5 +1,7 @@
 import json
 import os
+from tkinter import messagebox
+
 
 class Tasks:
     _instance = None  # Class-level variable to store the single instance
@@ -110,3 +112,44 @@ class Tasks:
     def reset_modified_flag(self):
         """Reset the modified flag to False."""
         self.modified = False
+
+    def add_bulk_tasks(self, new_tasks):
+        print(new_tasks)
+        """Add multiple tasks from a list of tasks with options to override or append commands."""
+        for task in new_tasks.get("tasks"):
+            task_name = task.get("name")
+            commands = task.get("commands", [])
+
+            # Check if the task already exists
+            existing_task = next((t for t in self.tasks if t["name"] == task_name), None)
+
+            if existing_task:
+                # Show popup to decide between override or append
+                user_choice = messagebox.askyesnocancel(
+                    "Task Conflict",
+                    f"The task '{task_name}' already exists.\n\n"
+                    "Do you want to:\n"
+                    "- Yes: Override the task and its commands\n"
+                    "- No: Append the commands to the existing task\n"
+                    "- Cancel: Skip this task"
+                )
+
+                if user_choice is None:
+                    # User chose Cancel, skip this task
+                    continue
+                elif user_choice:  # User chose Yes
+                    # Override the task and commands
+                    self.delete_task(task_name)  # Remove the existing task
+                    self.add_task(task_name)  # Add the new task
+                    for command in commands:
+                        self.add_command(task_name, command)
+                else:  # User chose No
+                    # Append commands to the existing task
+                    for command in commands:
+                        if command not in existing_task["commands"]:
+                            self.add_command(task_name, command)
+            else:
+                # Task does not exist, add it and all its commands
+                self.add_task(task_name)
+                for command in commands:
+                    self.add_command(task_name, command)

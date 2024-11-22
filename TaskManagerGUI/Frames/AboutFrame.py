@@ -3,8 +3,8 @@ from Update_module import VERSION
 
 class AboutFrame(ctk.CTkFrame):
     ORDER = 99
-    def __init__(self, master=None):
-        super().__init__(master)
+    def __init__(self, parent, main_window):
+        super().__init__(parent)
 
         self.label = ctk.CTkLabel(self, text="About Page", font=("Arial", 24))
         self.label.pack(pady=20)

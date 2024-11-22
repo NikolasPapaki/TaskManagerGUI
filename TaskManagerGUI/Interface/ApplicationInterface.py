@@ -5,6 +5,7 @@ import re
 import os
 import json
 from SharedObjects import Settings
+from tkinterdnd2 import TkinterDnD, DND_FILES
 
 def button_formating(text):
     """Add spaces before uppercase letters in camel case strings."""
@@ -76,7 +77,8 @@ class ApplicationInterface:
         """Initialize all frames and store them in the frames dictionary."""
         for name, obj in inspect.getmembers(inspect.getmodule(inspect.currentframe())):
             if inspect.isclass(obj) and issubclass(obj, ctk.CTkFrame):
-                self.frames[obj] = obj(self.content_area)
+                # Pass the main window (self) as the second argument
+                self.frames[obj] = obj(self.content_area, self)
 
     def show_frame(self, frame_class):
         """Show the selected frame and hide the current one."""

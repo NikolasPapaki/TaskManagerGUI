@@ -2,7 +2,7 @@ import customtkinter as ctk
 
 class HomeFrame(ctk.CTkFrame):
     ORDER = 1
-    def __init__(self, parent):
+    def __init__(self, parent, main_window):
         super().__init__(parent)
 
         self.parent = parent

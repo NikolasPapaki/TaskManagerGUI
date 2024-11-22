@@ -10,7 +10,7 @@ from tkcalendar import DateEntry
 class TaskLogsFrame(ctk.CTkFrame):
     ORDER = 96
 
-    def __init__(self, parent):
+    def __init__(self, parent, main_window):
         super().__init__(parent)
         self.parent = parent
         self.filter_timer = None
@@ -240,13 +240,19 @@ class TaskLogsFrame(ctk.CTkFrame):
             log_files_to_delete.append((log_file_name, log_file_path))
 
         # Show a confirmation dialog before deleting
-        files_str = ", ".join([file[0] for file in log_files_to_delete])  # Join log file names for display
         if messagebox.askyesno("Confirm Deletion",
                                f"Are you sure you want to delete the following logs?\nThis action cannot be undone!"):
             try:
                 for log_file_name, log_file_path in log_files_to_delete:
-                    os.remove(log_file_path)  # Delete the log file
-                    self.filtered_log_files.remove(log_file_name)  # Remove from the filtered list
+                    if os.path.exists(log_file_path):
+                        os.remove(log_file_path)  # Delete the log file
+                    else:
+                        print(f"File not found: {log_file_path}")
+
+                    # Find and remove the dictionary that has 'name': log_file_name
+                    self.filtered_log_files = [log for log in self.filtered_log_files if
+                                               log.get('name') != log_file_name]
+
                 self.update_log_treeview()  # Update the Treeview
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to delete log file(s): {e}")
