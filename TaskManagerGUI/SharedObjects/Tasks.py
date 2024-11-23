@@ -105,6 +105,12 @@ class Tasks:
         """Return the list of all tasks."""
         return self.tasks
 
+    def get_task(self, task_name):
+        for task in self.tasks:
+            if task["name"] == task_name:
+                return task
+        return None
+
     def is_modified(self):
         """Check if tasks have been modified since the last save."""
         return self.modified

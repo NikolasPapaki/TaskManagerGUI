@@ -8,6 +8,7 @@ import json
 import os
 from Frames.TaskManagementLogsFrame import TaskManagementLogsFrame
 from tkinterdnd2 import TkinterDnD, DND_FILES  # Import drag-and-drop support
+from tkinter import filedialog
 
 class TaskManagerFrame(ctk.CTkFrame):
     ORDER = 3
@@ -51,29 +52,75 @@ class TaskManagerFrame(ctk.CTkFrame):
         return []
 
     def show_context_menu(self, event):
+        # Identify the item under the cursor
         item_id = self.tree.identify_row(event.y)
-        self.tree.selection_set(item_id)
+        selected_items = self.tree.selection()
 
+        # If no items are selected, or the right-clicked item is not part of the selection
+        if not selected_items or item_id not in selected_items:
+            self.tree.selection_set(item_id)
+            selected_items = self.tree.selection()
+
+        # Clear the context menu
         self.context_menu.delete(0, tk.END)
 
-        if item_id:
-            if self.tree.parent(item_id):
-                self.context_menu.add_command(label="Edit Command", command=lambda: self.edit_command(item_id))
-                self.context_menu.add_separator()
-                self.context_menu.add_command(label="Delete Command", command=lambda: self.delete_command(item_id))
-            else:
-                self.context_menu.add_command(label="Add Command", command=lambda: self.add_command(item_id))
-                self.context_menu.add_separator()
-                self.context_menu.add_command(label="Rename Task", command=lambda: self.rename_task(item_id))
-                self.context_menu.add_separator()
-                self.context_menu.add_command(label="Delete Task", command=lambda: self.delete_task(item_id))
-
-        else:
+        # If no items are selected, show general options
+        if not selected_items:
             self.context_menu.add_command(label="Add New Task", command=self.add_task)
             self.context_menu.add_separator()
-            self.context_menu.add_command(label="View Logs", command=self.view_taskmanager_logs)  # Add view logs option
+            self.context_menu.add_command(label="View Logs", command=self.view_taskmanager_logs)
+        else:
+            # Determine the types of selected items
+            parent_items = [self.tree.parent(item) for item in selected_items]
+            is_task_selection = all(parent == "" for parent in parent_items)  # All are tasks
+            is_command_selection = all(parent != "" for parent in parent_items)  # All are commands
 
+            # Populate the context menu based on the selection type
+            if is_task_selection:
+                if len(selected_items) == 1:
+                    self.context_menu.add_command(label="Add Command",
+                                                  command=lambda: self.add_command(selected_items[0]))
+                    self.context_menu.add_separator()
+                    self.context_menu.add_command(label="Rename Task",
+                                                  command=lambda: self.rename_task(selected_items[0]))
+                    self.context_menu.add_separator()
+                    self.context_menu.add_command(label="Delete Task",
+                                                  command=lambda: self.delete_task(selected_items[0]))
+                else:
+                    self.context_menu.add_command(
+                        label="Delete Tasks", command=lambda: self.delete_multiple_tasks(selected_items)
+                    )
+
+                self.context_menu.add_separator()
+                self.context_menu.add_command(label="Export Task(s)",
+                                              command=lambda: self.export_selected_tasks(selected_items))
+
+            elif is_command_selection and len(selected_items) == 1:
+                # Single command selected
+                self.context_menu.add_command(label="Edit Command",
+                                              command=lambda: self.edit_command(selected_items[0]))
+                self.context_menu.add_separator()
+                self.context_menu.add_command(label="Delete Command",
+                                              command=lambda: self.delete_command(selected_items[0]))
+
+        # Show the context menu
         self.context_menu.post(event.x_root, event.y_root)
+
+    def export_selected_tasks(self, task_ids):
+        from tkinter.filedialog import asksaveasfilename
+
+        selected_tasks = [self.tasks_manager.get_task(self.tree.item(task_id, "text")) for task_id in task_ids]
+        tasks_to_export = {"tasks": selected_tasks}
+
+        file_path = asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json")],
+            title="Export Tasks to JSON",
+        )
+        if file_path:
+            with open(file_path, "w") as json_file:
+                json.dump(tasks_to_export, json_file, indent=4)
+            messagebox.showinfo("Export Successful", f"Tasks exported to {file_path}")
 
     def display_tasks(self):
         """Display tasks in the treeview widget."""
@@ -163,6 +210,25 @@ class TaskManagerFrame(ctk.CTkFrame):
             self.tasks_manager.delete_task(task_name)
             self.log_action("Deleted task", task_name)
 
+    def delete_multiple_tasks(self, task_ids):
+        # Confirm deletion
+        confirm = messagebox.askyesno(
+            "Confirm Delete",
+            f"Are you sure you want to delete the selected {len(task_ids)} task(s)?",
+        )
+        if confirm:
+            # Collect task names before deletion
+            task_names = [self.tree.item(task_id, 'text') for task_id in task_ids]
+
+            # Delete tasks from Task Manager and Treeview
+            for task_id in task_ids:
+                task_name = self.tree.item(task_id, 'text')
+                self.tasks_manager.delete_task(task_name)
+                self.tree.delete(task_id)
+
+            # Log the deletion
+            self.log_action("Deleted multiple tasks", ", ".join(task_names))
+
     def delete_command(self, command_id):
         """Delete an existing command."""
         task_id = self.tree.parent(command_id)
@@ -215,7 +281,7 @@ class TaskManagerFrame(ctk.CTkFrame):
         logs_window.grab_set()  # This prevents interaction with the main window
 
         # Create and pack the TaskManagementLogsFrame
-        logs_frame = TaskManagementLogsFrame(logs_window)  # Use the TaskManagementLogsFrame
+        logs_frame = TaskManagementLogsFrame(logs_window, self.main_window)  # Use the TaskManagementLogsFrame
         logs_frame.pack(expand=True, fill=ctk.BOTH)
 
         # When the popup is closed, release the grab and allow interaction with the main window

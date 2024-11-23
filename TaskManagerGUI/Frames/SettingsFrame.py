@@ -164,7 +164,7 @@ class SettingsFrame(ctk.CTkFrame):
         # Create and show the custom restart message dialog
         restart_dialog = RestartMessageDialog(
             self.parent,
-            message="The sidebar position has been updated. Restart the application for the changes to take effect.\n\nWould you like to restart now?"
+            message="The sidebar position has been updated.\n Restart the application for the changes to take effect.\n\nWould you like to restart now?"
         )
         user_response = restart_dialog.show()
 
