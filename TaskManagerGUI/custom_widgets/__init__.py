@@ -8,3 +8,4 @@ using customtkinter, including the CustomComboBox widget.
 from .CustomCombobox import CustomComboBox
 from .CustomInputDialog import CustomInputDialog
 from .RestartDialogBox import RestartMessageDialog
+from .CustomCommandDialog import CustomCommandDialog
