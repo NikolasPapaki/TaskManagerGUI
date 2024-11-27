@@ -136,8 +136,9 @@ class TaskManagerFrame(ctk.CTkFrame):
         # Populate the Treeview with sorted tasks
         for task in tasks_sorted:
             task_id = self.tree.insert("", tk.END, text=task["name"], values=["Task"])
-            for command in task["commands"]:
-                self.tree.insert(task_id, tk.END, text=command, values=["Command"])
+            for command_parts in task["commands"]:
+                command_text = self.generate_command_from_parts(command_parts)
+                self.tree.insert(task_id, tk.END, text=command_text, values=["Command"])
 
     def add_task(self):
         """Add a new task."""
@@ -176,7 +177,7 @@ class TaskManagerFrame(ctk.CTkFrame):
             self.log_action("Renamed task", f"{task_name} -> {new_task_name}")
 
     def add_command(self, task_id):
-        # Display the custom input dialog with multiple fields
+        """Add a command to a task."""
         input_dialog = CustomCommandDialog(
             title="Add Command",
             parent=self,
@@ -185,170 +186,70 @@ class TaskManagerFrame(ctk.CTkFrame):
         command_parts = input_dialog.show()
 
         if command_parts:
-            prefix, path, executable, arguments = command_parts
-
-            # Check if path is provided, and if not, use an empty string
-            if path:
-                # Normalize the path separator
-                path = path.strip()
-
-                # Ensure the correct separator is used for the platform
-                # On Windows, we prefer using '\\' but on Unix-like systems we prefer '/'
-                if os.name == 'nt':  # If we're on Windows
-                    path = path.replace('/', '\\')  # Replace all '/' with '\\'
-                else:  # If we're on a Unix-like system (e.g., Linux or Mac)
-                    path = path.replace('\\', '/')  # Replace all '\\' with '/'
-
-                # Remove trailing slash or backslash if it exists
-                if path.endswith(('/', '\\')):
-                    path = path.rstrip('/\\')
-
-                # Construct the full command with the correct path and executable
-                command_name = f"{prefix} {path}{os.sep}{executable} {arguments}".strip()
-            else:
-                # If no path is provided, simply construct the command with the executable
-                command_name = f"{prefix} {executable} {arguments}".strip()
+            prefix, path, executable, arguments = map(str.strip, command_parts)
+            command_dict = {
+                "prefix": prefix,
+                "path": path,
+                "executable": executable,
+                "arguments": arguments
+            }
 
             # Retrieve the task name
             task_name = self.tree.item(task_id, "text")
 
             # Add the command to the task
-            self.tasks_manager.add_command(task_name, command_name)
+            self.tasks_manager.add_command(task_name, command_dict)
 
             # Insert the new command into the Treeview under the corresponding task
-            self.tree.insert(task_id, tk.END, text=command_name, values=["Command"])
+            command_text = self.generate_command_from_parts(command_dict)
+            self.tree.insert(task_id, tk.END, text=command_text, values=["Command"])
 
             # Log the addition of the command
-            self.log_action("Added command", task_name, new_value=command_name)
+            self.log_action("Added command", task_name, new_value=command_text)
 
     def edit_command(self, command_id):
         """Edit an existing command."""
-        # Retrieve the current command name
-        command_name = self.tree.item(command_id, 'text')
-        print(command_name)
+        # Retrieve the task and command
+        task_id = self.tree.parent(command_id)
+        task_name = self.tree.item(task_id, 'text')
+        command_text = self.tree.item(command_id, 'text')
 
-        # Parse the current command using the parse_command method
-        command_parts = self.parse_command(command_name)
-        print(command_parts)
-
-        # Extract the parsed command parts
-        prefix = command_parts.get("prefix", "")
-        path = command_parts.get("path", "")
-        executable = command_parts.get("executable", "")
-        arguments = command_parts.get("arguments", "")
-
-        # Provide default values for the dialog based on the current command
-        fields = ["Prefix", "Path", "Executable", "Arguments"]
-        default_values = [prefix, path, executable, arguments]
-
+        # Parse the current command using the tasks manager
+        current_command = self.tasks_manager.get_command(task_name, command_text)
+        print(current_command)
         # Open the CustomCommandDialog with the current values
+        fields = ["Prefix", "Path", "Executable", "Arguments"]
+        default_values = [
+            current_command.get("prefix", ""),
+            current_command.get("path", ""),
+            current_command.get("executable", ""),
+            current_command.get("arguments", "")
+        ]
         dialog = CustomCommandDialog(title="Edit Command", parent=self, fields=fields, default_values=default_values)
         dialog_result = dialog.show()
 
         if dialog_result:
-            new_prefix, new_path, new_executable, new_arguments = dialog_result
+            new_prefix, new_path, new_executable, new_arguments = map(str.strip, dialog_result)
+            new_command_dict = {
+                "prefix": new_prefix,
+                "path": new_path,
+                "executable": new_executable,
+                "arguments": new_arguments
+            }
 
-            # Handle path formatting
-            if new_path:
-                # Normalize the path separator
-                new_path = new_path.strip()
-
-                # Ensure the correct separator is used for the platform
-                # On Windows, we prefer using '\\' but on Unix-like systems we prefer '/'
-                if os.name == 'nt':  # If we're on Windows
-                    new_path = new_path.replace('/', '\\')  # Replace all '/' with '\\'
-                else:  # If we're on a Unix-like system (e.g., Linux or Mac)
-                    new_path = new_path.replace('\\', '/')  # Replace all '\\' with '/'
-
-                # Remove trailing slash or backslash if it exists
-                if new_path.endswith(('/', '\\')):
-                    new_path = new_path.rstrip('/\\')
-
-                # Construct the full command with the correct path and executable
-                new_command_name = f"{new_prefix} {new_path}{os.sep}{new_executable} {new_arguments}".strip()
-            else:
-                # If no path is provided, simply construct the command with the executable
-                new_command_name = f"{new_prefix} {new_executable} {new_arguments}".strip()
-
-            # Ensure the new command is different from the old one
-            if new_command_name != command_name:
-                # Confirm the edit
+            # Confirm the edit
+            new_command_text = self.generate_command_from_parts(new_command_dict)
+            if new_command_text != command_text:
                 confirm = messagebox.askyesno("Confirm Edit", "Are you sure you want to edit the command?")
                 if confirm:
-                    # Retrieve the task associated with the command
-                    task_id = self.tree.parent(command_id)
-                    task_name = self.tree.item(task_id, 'text')
-
-                    # Update the command using the tasks manager
-                    self.tasks_manager.update_command(task_name, command_name, new_command_name)
+                    # Update the command in the tasks manager
+                    self.tasks_manager.update_command(task_name, current_command, new_command_dict)
 
                     # Update the Treeview with the new command name
-                    self.tree.item(command_id, text=new_command_name)
+                    self.tree.item(command_id, text=new_command_text)
 
                     # Log the action
-                    self.log_action("Updated command", task_name, old_value=command_name, new_value=new_command_name)
-
-    def parse_command(self, command_name):
-        # Initialize default values
-        parts = {
-            "prefix": "",
-            "path": "",
-            "executable": "",
-            "arguments": ""
-        }
-
-        # Strip leading/trailing spaces
-        command_name = command_name.strip()
-
-        # Step 1: Find the first \ or / to separate path and executable
-        path_index = command_name.find(":")
-        print(path_index)
-        if path_index != -1:
-            # There is a path part, now check if there is a space before it to identify prefix
-            prefix_candidate = command_name[:path_index].strip()
-            # If there is a space before the path, it's the prefix
-            if " " in prefix_candidate:
-                parts["prefix"] = prefix_candidate.split(" ")[0]
-                remaining = command_name.rsplit(" ", 1)[1]
-            else:
-                parts["prefix"] = ""
-                remaining = command_name.strip()
-        else:
-            # No path, treat the entire command as either just executable or prefixed executable
-            parts["prefix"] = ""
-            remaining = command_name.strip()
-
-        # Step 2: If there’s a path/executable, separate path and executable
-        if "/" in remaining or "\\" in remaining:
-            # We have a path, split by the last / or \ to get path and executable
-            if "/" in remaining:
-                path_executable_split = remaining.rsplit("/", 1)
-            else:
-                path_executable_split = remaining.rsplit("\\", 1)
-
-            parts["path"] = path_executable_split[0]
-            parts["executable"] = path_executable_split[1] if len(path_executable_split) > 1 else path_executable_split[
-                0]
-        else:
-            # No path, it's just the executable
-            parts["executable"] = remaining
-            parts["path"] = ""
-
-        # Step 3: Check if executable has an extension to separate executable and arguments
-        if "." in parts["executable"]:
-            # Find the extension part
-            executable_parts = parts["executable"].split(".", 1)
-            parts["executable"] = executable_parts[0] + "." + executable_parts[1].split(" ")[
-                0]  # First part is the executable
-            parts["arguments"] = " ".join(
-                executable_parts[1].split(" ")[1:]).strip()  # Everything after extension is the arguments
-
-        # Step 4: Anything after executable is arguments
-        if " " in parts["arguments"]:
-            parts["arguments"] = parts["arguments"].strip()
-
-        return parts
-
+                    self.log_action("Updated command", task_name, old_value=command_text, new_value=new_command_text)
 
     def delete_task(self, task_id):
         """Delete an existing task."""
@@ -455,3 +356,16 @@ class TaskManagerFrame(ctk.CTkFrame):
         else:
             messagebox.showerror("Invalid File", "Only JSON files are allowed.")
 
+    def generate_command_from_parts(self, parts):
+        """Generate a command string from its dictionary parts."""
+        prefix = parts.get("prefix", "").strip()
+        path = parts.get("path", "").strip()
+        executable = parts.get("executable", "").strip()
+        arguments = parts.get("arguments", "").strip()
+
+        # Construct the full command
+        if path:
+            command = f"{prefix} {os.path.join(path, executable)} {arguments}".strip()
+        else:
+            command = f"{prefix} {executable} {arguments}".strip()
+        return command

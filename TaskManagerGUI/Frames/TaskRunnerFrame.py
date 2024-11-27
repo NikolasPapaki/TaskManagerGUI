@@ -143,7 +143,8 @@ class TaskRunnerFrame(ctk.CTkFrame):
 
         try:
             with open(log_file_path, "w") as log_file:  # Open log file for writing
-                for i, command in enumerate(commands):
+                for i, command_dict in enumerate(commands):
+                    command = self.generate_command_from_parts(command_dict)
                     try:
                         # Run the command and capture output and errors
                         result = subprocess.run(
@@ -224,15 +225,6 @@ class TaskRunnerFrame(ctk.CTkFrame):
         text_widget.configure(state="disabled")  # Make the textbox read-only
         text_widget.pack(side="left", fill="both", expand=True)
 
-        # # Add a scrollbar
-        # scrollbar = ctk.CTkScrollbar(frame, command=text_widget.yview)
-        # scrollbar.pack(side="right", fill="y")
-        # text_widget.configure(yscrollcommand=scrollbar.set)
-
-        # # Add a Close button
-        # close_button = ctk.CTkButton(log_window, text="Close", command=log_window.destroy)
-        # close_button.pack(pady=10)
-
         # Wait for the popup to close
         log_window.wait_window()
 
@@ -251,6 +243,20 @@ class TaskRunnerFrame(ctk.CTkFrame):
         """Enable all task buttons."""
         for button in self.task_buttons.values():
             button.configure(state="normal")
+
+    def generate_command_from_parts(self, command_dict):
+        """Generate a command string from its dictionary parts."""
+        prefix = command_dict.get("prefix", "").strip()
+        path = command_dict.get("path", "").strip()
+        executable = command_dict.get("executable", "").strip()
+        arguments = command_dict.get("arguments", "").strip()
+
+        # Construct the full command
+        if path:
+            command = f"{prefix} {os.path.join(path, executable)} {arguments}".strip()
+        else:
+            command = f"{prefix} {executable} {arguments}".strip()
+        return command
 
     def on_show(self):
         self.update_task_buttons()
