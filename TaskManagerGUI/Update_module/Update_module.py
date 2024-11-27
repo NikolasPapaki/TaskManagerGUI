@@ -87,7 +87,7 @@ class Update_module:
         current_version_number = int(self.current_version[1:].replace(".", ""))
         latest_version_number = int(latest_version[1:].replace(".", ""))
 
-        return latest_version_number > current_version_number, latest_version
+        return (latest_version_number > current_version_number), latest_version
 
     def update_application(self):
         latest_version, zipball_url = self.get_latest_version()
@@ -96,4 +96,4 @@ class Update_module:
         self.restart_application()
 
     def restart_application(self):
-        restart_application(self.executable_name)
+        restart_application_executable()
