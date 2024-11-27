@@ -45,7 +45,7 @@ class Update_module:
         self.download_dir = 'downloads'
         self.executable_name = EXECUTABLE_NAME
         self.current_version = VERSION
-        self.latest_release_url = f'https://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases/latest'
+        self.latest_release_url = f'http://api.github.com/repos/{self.repo_owner}/{self.repo_name}/releases/latest'
 
     def get_latest_version(self):
         response = requests.get(self.latest_release_url)
