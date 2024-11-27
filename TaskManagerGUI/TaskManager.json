@@ -15,7 +15,7 @@
   },
   {
    "optionDest": "console",
-   "value": true
+   "value": false
   },
   {
    "optionDest": "name",
@@ -23,7 +23,7 @@
   },
   {
    "optionDest": "clean_build",
-   "value": false
+   "value": true
   },
   {
    "optionDest": "strip",
@@ -120,6 +120,22 @@
   {
    "optionDest": "datas",
    "value": "C:/Program Files/OpenSSL-Win64/bin/libssl-3-x64.dll;."
+  },
+  {
+   "optionDest": "datas",
+   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/SharedObjects;SharedObjects/"
+  },
+  {
+   "optionDest": "datas",
+   "value": "C:/Users/Nikolas/AppData/Local/Programs/Python/Python310/Lib/site-packages/customtkinter;customtkinter/"
+  },
+  {
+   "optionDest": "datas",
+   "value": "C:/Users/Nikolas/AppData/Local/Programs/Python/Python310/Lib/site-packages/win32ctypes;win32ctypes/"
+  },
+  {
+   "optionDest": "datas",
+   "value": "C:/Users/Nikolas/AppData/Local/Programs/Python/Python310/Lib/site-packages/tkinterdnd2;tkinterdnd2/"
   }
  ],
  "nonPyinstallerOptions": {

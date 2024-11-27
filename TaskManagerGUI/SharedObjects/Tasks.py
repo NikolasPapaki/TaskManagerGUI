@@ -5,6 +5,12 @@ from tkinter import messagebox
 
 class Tasks:
     _instance = None  # Class-level variable to store the single instance
+    empty_dict = {
+                    "prefix": "",
+                    "path": "",
+                    "executable": "",
+                    "arguments": ""
+                }
 
     def __new__(cls, *args, **kwargs):
         """Override __new__ to ensure only one instance of Tasks exists."""
@@ -95,8 +101,6 @@ class Tasks:
                 if old_command_dict in task["commands"]:
                     task["commands"] = [new_command_dict if cmd == old_command_dict else cmd for cmd in task["commands"]]
                     self.save_tasks()
-                    return True
-        return False
 
     def get_tasks(self):
         """Return the list of all tasks."""
@@ -114,9 +118,7 @@ class Tasks:
                 for command in task["commands"]:
                     if command_name == self.generate_command_from_parts(command):
                         return command
-
-
-        return []
+        return self.empty_dict
 
     def add_bulk_tasks(self, new_tasks):
         print(new_tasks)

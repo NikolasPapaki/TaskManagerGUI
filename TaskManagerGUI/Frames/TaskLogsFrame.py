@@ -95,7 +95,6 @@ class TaskLogsFrame(ctk.CTkFrame):
         logs_dir = "task_logs"
 
         if not os.path.exists(logs_dir):
-            messagebox.showerror("Error", f"'{logs_dir}' directory does not exist.")
             return
 
         # List all files in the directory and filter for .log files
