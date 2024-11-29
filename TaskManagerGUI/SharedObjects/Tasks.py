@@ -6,27 +6,38 @@ from tkinter import messagebox
 class Tasks:
     _instance = None  # Class-level variable to store the single instance
     empty_dict = {
-                    "prefix": "",
-                    "path": "",
-                    "executable": "",
-                    "arguments": ""
-                }
+        "prefix": "",
+        "path": "",
+        "executable": "",
+        "arguments": ""
+    }
 
     def __new__(cls, *args, **kwargs):
         """Override __new__ to ensure only one instance of Tasks exists."""
         if not cls._instance:
             cls._instance = super(Tasks, cls).__new__(cls, *args, **kwargs)
+            cls._instance._initialized = False  # Add a flag to track initialization
         return cls._instance
 
     def __init__(self):
-        self.tasks = self.load_tasks()
+        if not self._initialized:  # Initialize only if not already initialized
+            self.tasks = self.load_tasks()
+            self._initialized = True  # Set the flag to True after initialization
 
     def load_tasks(self):
         """Load tasks from the tasks.json file."""
         if os.path.exists("tasks.json"):
-            with open("tasks.json", "r") as file:
-                data = json.load(file)
-                return data.get("tasks", [])
+            try:
+                with open("tasks.json", "r") as file:
+                    data = json.load(file)
+                    return data.get("tasks", [])
+            except json.JSONDecodeError:
+                messagebox.showwarning(
+                    "Warning",
+                    "Tasks.json is not in a valid format. No tasks were loaded."
+                )
+            except Exception as e:
+                print(f"Unexpected error loading tasks.json: {e}")
         return []
 
     def save_tasks(self):
@@ -163,6 +174,10 @@ class Tasks:
 
     def generate_command_from_parts(self, command_dict):
         """Generate a command string from its dictionary parts."""
+
+        if not isinstance(command_dict, dict):
+            return self.empty_dict
+
         prefix = command_dict.get("prefix", "").strip()
         path = command_dict.get("path", "").strip()
         executable = command_dict.get("executable", "").strip()

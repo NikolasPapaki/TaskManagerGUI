@@ -54,10 +54,6 @@ class SettingsFrame(ctk.CTkFrame):
         )
         self.sidebar_position_switch.pack(pady=10, anchor="w", padx=20)
 
-        # # App update button
-        # self.update_button = ctk.CTkButton(body_frame, text="Check for Updates", command=self.check_for_updates)
-        # self.update_button.pack(pady=(20, 10), anchor="w", padx=20)
-
         # Credentials frame
         credential_frame = ctk.CTkFrame(body_frame)
         credential_frame.pack(pady=(10, 5), padx=10, fill="x")
@@ -81,20 +77,6 @@ class SettingsFrame(ctk.CTkFrame):
         self.password_entry = ctk.CTkEntry(self.password_entry_frame, width=300, show="*")
         self.password_entry.pack(side="left", pady=5)
 
-        # # Debugger Root Directory frame
-        # debugger_frame = ctk.CTkFrame(body_frame)
-        # debugger_frame.pack(pady=(10, 5), padx=10, fill="x")
-        #
-        # # Debugger Root Directory label
-        # debugger_label = ctk.CTkLabel(debugger_frame, text="Debugger Root Directory:", font=("Arial", 12))
-        # debugger_label.pack(pady=10, padx=10, anchor='w')
-        #
-        # # Debugger Root Directory Entry
-        # self.debugger_root_entry_frame = ctk.CTkFrame(debugger_frame)
-        # self.debugger_root_entry_frame.pack(pady=(5,15), padx=20, fill="x")
-        # ctk.CTkLabel(self.debugger_root_entry_frame, text="Path").pack(side="left", anchor="w", padx=10)
-        # self.debugger_root_entry = ctk.CTkEntry(self.debugger_root_entry_frame, width=300)
-        # self.debugger_root_entry.pack(side="left", pady=5, anchor="w", expand=True)
 
         # Save button
         self.save_button = ctk.CTkButton(body_frame, text="Save Settings", command=self.save_all_settings)
@@ -175,38 +157,6 @@ class SettingsFrame(ctk.CTkFrame):
         if user_response == "restart_now":
             restart_application_executable()  # Restart the application
 
-
-    # def check_for_updates(self):
-    #     needs_update, latest_version = self.updater.check_for_updates()
-    #     if needs_update:
-    #         user_response = messagebox.askyesno(
-    #             "Update Available",
-    #             f"A new version ({latest_version}) is available."
-    #         )
-    #         if user_response:
-    #             self.download_update()
-    #     else:
-    #         messagebox.showinfo("Up to Date", "Your application is already up to date.")
-    #
-    # def download_update(self):
-    #     try:
-    #         self.updater.update_application()
-    #     except Exception as e:
-    #         messagebox.showerror("Error!", "Error checking for updates.")
-    #         print(f"Error: {e}")
-
-    # def load_debugger_directory(self):
-    #     if "debugger_root_directory" in self.settings_manager.settings:
-    #         self.debugger_root_entry.insert(0, self.settings_manager.get("debugger_root_directory"))
-    #
-    # def set_debugger_directory_settings(self):
-    #     # Save the debugger root directory setting
-    #     debugger_root = self.debugger_root_entry.get().strip()
-    #     if debugger_root:
-    #         self.settings_manager.add_or_update("debugger_root_directory", debugger_root)
-    #     else:
-    #         if "debugger_root_directory" in self.settings_manager.settings:
-    #             self.settings_manager.delete("debugger_root_directory")
 
     def save_all_settings(self):
         # self.set_debugger_directory_settings()

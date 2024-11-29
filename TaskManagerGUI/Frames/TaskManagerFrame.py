@@ -216,7 +216,6 @@ class TaskManagerFrame(ctk.CTkFrame):
 
         # Parse the current command using the tasks manager
         current_command = self.tasks_manager.get_command(task_name, command_text)
-        print(current_command)
         # Open the CustomCommandDialog with the current values
         fields = ["Prefix", "Path", "Executable", "Arguments"]
         default_values = [
