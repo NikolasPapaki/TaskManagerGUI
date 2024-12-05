@@ -9,7 +9,7 @@ import os
 from Frames.TaskManagementLogsFrame import TaskManagementLogsFrame
 from tkinterdnd2 import TkinterDnD, DND_FILES  # Import drag-and-drop support
 from tkinter import filedialog
-from custom_widgets import CustomCommandDialog
+from custom_widgets import CustomInputDialog
 
 class TaskManagerFrame(ctk.CTkFrame):
     ORDER = 3
@@ -142,7 +142,7 @@ class TaskManagerFrame(ctk.CTkFrame):
 
     def add_task(self):
         """Add a new task."""
-        input_dialog = CustomInputDialog(title="Enter Task Name", initial_value="", parent=self)
+        input_dialog = CustomInputDialog(title="Enter Task Name", parent=self, fields=["Name"])
         task_name = input_dialog.show()
 
         if task_name:
@@ -162,7 +162,7 @@ class TaskManagerFrame(ctk.CTkFrame):
         task_name = self.tree.item(item_id, "text")
 
         # Prompt the user to input a new name
-        input_dialog = CustomInputDialog(title="Enter New Task Name", initial_value=task_name, parent=self)
+        input_dialog = CustomInputDialog(title="Enter New Task Name", fields=["Name"], default_values=[task_name], parent=self)
         new_task_name = input_dialog.show()
 
         if new_task_name:
@@ -178,10 +178,10 @@ class TaskManagerFrame(ctk.CTkFrame):
 
     def add_command(self, task_id):
         """Add a command to a task."""
-        input_dialog = CustomCommandDialog(
+        input_dialog = CustomInputDialog(
             title="Add Command",
             parent=self,
-            fields=["Prefix (e.g., python, java)", "Executable Path", "Executable Name", "Arguments"]
+            fields=["Prefix", "Executable Path", "Executable Name", "Arguments"]
         )
         command_parts = input_dialog.show()
 
@@ -216,7 +216,7 @@ class TaskManagerFrame(ctk.CTkFrame):
 
         # Parse the current command using the tasks manager
         current_command = self.tasks_manager.get_command(task_name, command_text)
-        # Open the CustomCommandDialog with the current values
+        # Open the CustomInputDialog with the current values
         fields = ["Prefix", "Path", "Executable", "Arguments"]
         default_values = [
             current_command.get("prefix", ""),
@@ -224,7 +224,7 @@ class TaskManagerFrame(ctk.CTkFrame):
             current_command.get("executable", ""),
             current_command.get("arguments", "")
         ]
-        dialog = CustomCommandDialog(title="Edit Command", parent=self, fields=fields, default_values=default_values)
+        dialog = CustomInputDialog(title="Edit Command", parent=self, fields=fields, default_values=default_values)
         dialog_result = dialog.show()
 
         if dialog_result:

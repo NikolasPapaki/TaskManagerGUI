@@ -206,8 +206,9 @@ class TaskLogsFrame(ctk.CTkFrame):
             selected_items = self.logs_treeview.selection()
 
             # If no item is selected yet, select the item under the cursor
-            if not selected_items and item_id:
-                self.logs_treeview.selection_add(item_id)
+            if not selected_items or item_id not in selected_items:
+                self.logs_treeview.selection_set(item_id)
+                selected_items = self.logs_treeview.selection()
 
             # Clear the existing context menu options
             self.context_menu.delete(0, tk.END)
@@ -333,7 +334,8 @@ class TaskLogsFrame(ctk.CTkFrame):
         if messagebox.askyesno("Confirm Deletion", f"Are you sure you want to delete '{log_file_name}'? This action cannot be undone!"):
             try:
                 os.remove(log_file_path)  # Delete the log file
-                self.filtered_log_files.remove(log_file_name)  # Remove from the filtered list
+                self.filtered_log_files = [log for log in self.filtered_log_files if
+                                           log.get('name') != log_file_name]
                 self.update_log_treeview()  # Update the Treeview
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to delete log file: {e}")

@@ -9,4 +9,3 @@ class HomeFrame(ctk.CTkFrame):
 
         label = ctk.CTkLabel(self, text="Welcome to the Task Manger GUI", font=("Arial", 24))
         label.pack(pady=20)
-

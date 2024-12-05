@@ -131,7 +131,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
 
     def run_commands_thread(self, commands, name):
         """Run a series of subprocesses with progress tracking and log output/errors."""
-        self.disable_buttons()
+        self._configure_buttons("disabled")
 
         # Ensure the task_logs directory exists
         log_dir = "task_logs"
@@ -191,7 +191,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
 
         finally:
             self.update_progress_bar(len(commands), len(commands))
-            self.enable_buttons()
+            self._configure_buttons("normal")
 
     def show_log_popup(self, log_content):
         """Display the log content in a modal, scrollable popup window using CustomTkinter."""
@@ -234,15 +234,11 @@ class TaskRunnerFrame(ctk.CTkFrame):
             self.progress_bar.set(progress)
             self.update_idletasks()
 
-    def disable_buttons(self):
-        """Disable all task buttons."""
+    def _configure_buttons(self, state):
+        """Configure all buttons to the specified state."""
         for button in self.task_buttons.values():
-            button.configure(state="disabled")
+            button.configure(state=state)
 
-    def enable_buttons(self):
-        """Enable all task buttons."""
-        for button in self.task_buttons.values():
-            button.configure(state="normal")
 
     def generate_command_from_parts(self, command_dict):
         """Generate a command string from its dictionary parts."""

@@ -1,34 +1,62 @@
 import customtkinter as ctk
 import tkinter as tk  # Ensure tk is imported if needed for focus handling
 
+
+
 class CustomInputDialog(ctk.CTkToplevel):
-    def __init__(self, title, initial_value, width=450, height=150, parent=None):
+    def __init__(self, title, parent, fields, default_values=None):
         super().__init__(parent)
+
+        # Set the title of the dialog
         self.title(title)
+        self.entries = {}
+        self.result = None
+
+        if default_values is None:
+            default_values = ['' for _ in fields]
+
+        # Calculate dynamic dimensions
+        min_width = 450
+        padding = 20  # Additional width padding
+        max_field_length = max(len(field) for field in fields) if fields else 0
+        dialog_width = max(min_width, max_field_length * 10 + padding)  # Approx. 10px per character + padding
+        dialog_height = len(fields) * 40 + 80  # 40px per field row + 80px for buttons and padding
 
         # Set the dialog size
-        self.geometry(f"{width}x{height}")
+        self.geometry(f"{dialog_width}x{dialog_height}")
 
         # Center the dialog on the parent window
-        self.center_dialog(parent, width, height)
+        self.center_dialog(parent, dialog_width, dialog_height)
 
-        # Create an entry for user input with the initial value
-        self.input_entry = ctk.CTkEntry(self)
-        self.input_entry.insert(0, initial_value)  # Set initial value
-        self.input_entry.pack(pady=10, padx=10, fill=ctk.X)
+        # Configure grid layout for responsive resizing
+        self.columnconfigure(0, weight=1)  # For labels
+        self.columnconfigure(1, weight=3)  # For entry widgets
 
-        # Select all text in the entry and set focus after dialog is fully loaded
-        self.after(100, self.set_entry_focus)
+        # Create labels and entry widgets for each field using customtkinter
+        for idx, (field, default_value) in enumerate(zip(fields, default_values)):
+            label = ctk.CTkLabel(self, text=field)
+            label.grid(row=idx, column=0, padx=10, pady=5, sticky="w")
+            entry = ctk.CTkEntry(self)
+            entry.grid(row=idx, column=1, padx=10, pady=5, sticky="ew")  # Expand horizontally
+            entry.insert(0, default_value)
+            self.entries[field] = entry
 
-        # Create OK and Cancel buttons
-        self.ok_button = ctk.CTkButton(self, text="OK", command=self.on_ok)
-        self.ok_button.pack(side='left', padx=(10, 5), pady=10)
+        # Create a frame for the buttons
+        button_frame = ctk.CTkFrame(self, fg_color=self.cget('bg'))  # Set background color to parent window's bg
+        button_frame.grid(row=len(fields), column=0, columnspan=2, pady=10, sticky="ew")
 
-        self.cancel_button = ctk.CTkButton(self, text="Cancel", command=self.on_cancel)
-        self.cancel_button.pack(side='right', padx=(5, 10), pady=10)
+        # Add OK and Cancel buttons with spacing between them
+        ok_button = ctk.CTkButton(button_frame, text="OK", command=self._on_ok)
+        ok_button.pack(side=ctk.LEFT, padx=10)  # Add horizontal spacing
+        cancel_button = ctk.CTkButton(button_frame, text="Cancel", command=self._on_cancel)
+        cancel_button.pack(side=ctk.RIGHT, padx=10)  # Add horizontal spacing
 
-        self.result = None
-        self.protocol("WM_DELETE_WINDOW", self.on_cancel)  # Handle window close
+        # Make the dialog window modal and wait for a response
+        self.lift()
+        self.transient(parent)
+        self.grab_set()
+        self.wait_window()
+
 
     def center_dialog(self, parent, width, height):
         """Center the dialog on the parent window or screen."""
@@ -46,22 +74,13 @@ class CustomInputDialog(ctk.CTkToplevel):
             y = (screen_height - height) // 2
         self.geometry(f"+{x}+{y}")
 
-    def set_entry_focus(self):
-        """Set focus and select text in the entry box."""
-        self.input_entry.focus_set()
-        self.input_entry.select_range(0, tk.END)
+    def _on_ok(self):
+        # Collect all field values
+        self.result = [entry.get().strip() for entry in self.entries.values()]
+        self.destroy()
 
-    def on_ok(self):
-        """Handle OK button click."""
-        self.result = self.input_entry.get()
-        self.destroy()  # Close the dialog
-
-    def on_cancel(self):
-        """Handle Cancel button click."""
-        self.result = None
-        self.destroy()  # Close the dialog
+    def _on_cancel(self):
+        self.destroy()
 
     def show(self):
-        """Show the dialog and wait for user input."""
-        self.wait_window()  # Block until the dialog is closed
         return self.result
