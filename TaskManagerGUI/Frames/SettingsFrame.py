@@ -54,29 +54,37 @@ class SettingsFrame(ctk.CTkFrame):
         )
         self.sidebar_position_switch.pack(pady=10, anchor="w", padx=20)
 
-        # Credentials frame
-        credential_frame = ctk.CTkFrame(body_frame)
-        credential_frame.pack(pady=(10, 5), padx=10, fill="x")
+        # Healthchecks frame
+        healthcheck_frame = ctk.CTkFrame(body_frame)
+        healthcheck_frame.pack(pady=(10, 5), padx=10, fill="x")
 
-        # Credential label positioned above the entries
-        credential_label = ctk.CTkLabel(credential_frame, text="Credentials:", font=("Arial", 12))
-        credential_label.pack(pady=10, padx=10, anchor='w')
+        # Healthcheck label positioned above the entries
+        healthcheck_label = ctk.CTkLabel(healthcheck_frame, text="Health Check Information:", font=("Arial", 12))
+        healthcheck_label.pack(pady=10, padx=10, anchor='w')
 
-        # Username Entry
-        self.username_entry_frame = ctk.CTkFrame(credential_frame)
-        self.username_entry_frame.pack(pady=5, padx=20, fill="x")
-        ctk.CTkLabel(self.username_entry_frame, text="Username").pack(side="left", anchor="w", padx=10)
-        self.username_entry = ctk.CTkEntry(self.username_entry_frame, width=300)
-        self.username_entry.pack(side="left", pady=5)
+        # URL Entry
+        self.url_entry_frame = ctk.CTkFrame(healthcheck_frame)
+        self.url_entry_frame.pack(pady=5, padx=20, fill="x")
+        url_label = ctk.CTkLabel(self.url_entry_frame, text="URL:", anchor="w", width=60)
+        url_label.grid(row=0, column=0, sticky="w", padx=10)
+        self.url_entry = ctk.CTkEntry(self.url_entry_frame, width=300)
+        self.url_entry.grid(row=0, column=1, pady=5, sticky="w")
 
-        # Password Entry (hidden, will be encrypted before saving)
-        self.password_entry_frame = ctk.CTkFrame(credential_frame)
-        self.password_entry_frame.pack(pady=(5, 15), padx=20,
-                                       fill="x")  # Added more padding below the password entry frame
-        ctk.CTkLabel(self.password_entry_frame, text="Password:").pack(side="left", anchor="w", padx=10)
-        self.password_entry = ctk.CTkEntry(self.password_entry_frame, width=300, show="*")
-        self.password_entry.pack(side="left", pady=5)
+        # Secret Id Entry
+        self.secret_id_entry_frame = ctk.CTkFrame(healthcheck_frame)
+        self.secret_id_entry_frame.pack(pady=5, padx=20, fill="x")
+        secret_id_label = ctk.CTkLabel(self.secret_id_entry_frame, text="Secret Id:", anchor="w", width=60)
+        secret_id_label.grid(row=0, column=0, sticky="w", padx=10)
+        self.secret_id_entry = ctk.CTkEntry(self.secret_id_entry_frame, width=300)
+        self.secret_id_entry.grid(row=0, column=1, pady=5, sticky="w")
 
+        # Role Id Entry
+        self.role_id_entry_frame = ctk.CTkFrame(healthcheck_frame)
+        self.role_id_entry_frame.pack(pady=(5, 15), padx=20, fill="x")
+        role_id_label = ctk.CTkLabel(self.role_id_entry_frame, text="Role Id:", anchor="w", width=60)
+        role_id_label.grid(row=0, column=0, sticky="w", padx=10)
+        self.role_id_entry = ctk.CTkEntry(self.role_id_entry_frame, width=300)
+        self.role_id_entry.grid(row=0, column=1, pady=5, sticky="w")
 
         # Save button
         self.save_button = ctk.CTkButton(body_frame, text="Save Settings", command=self.save_all_settings)
@@ -84,42 +92,41 @@ class SettingsFrame(ctk.CTkFrame):
 
         self.load_theme_mode()
         self.load_sidebar_position()
-        self.load_credential_data()
+        self.load_healthcheck_data()
         # self.load_debugger_directory()
 
-    def load_credential_data(self):
+    def load_healthcheck_data(self):
         """Load the username and encrypted password from settings.json and decrypt the password."""
-        if "username" in self.settings_manager.settings:
-            self.username_entry.insert(0, self.settings_manager.settings["username"])
-        if "password" in self.settings_manager.settings:
-            if not self.key and not self.cipher_suite:
-                self.key = load_or_generate_key()
-                self.cipher_suite = Fernet(self.key)
-            encrypted_password = self.settings_manager.settings["password"]
-            decrypted_password = self.cipher_suite.decrypt(encrypted_password.encode()).decode()
-            self.password_entry.insert(0, decrypted_password)
+        if "vault_url" in self.settings_manager.settings:
+            self.url_entry.insert(0, self.settings_manager.settings["vault_url"])
 
-    def set_credential_data_settings(self):
+        if "role_id" in self.settings_manager.settings:
+            self.role_id_entry.insert(0, self.settings_manager.settings["role_id"])
+
+        if "secret_id" in self.settings_manager.settings:
+            self.secret_id_entry.insert(0, self.settings_manager.settings["secret_id"])
+
+
+    def set_healthcheck_data_settings(self):
         """Save the username and encrypted password to settings.json."""
-        username = self.username_entry.get().strip()
-        password = self.password_entry.get().strip()
+        url = self.url_entry.get().strip()
+        secret_id = self.secret_id_entry.get().strip()
+        role_id = self.role_id_entry.get().strip()
 
-        if password:
-            if not self.key and not self.cipher_suite:
-                self.key = load_or_generate_key()
-                self.cipher_suite = Fernet(self.key)
-            # Encrypt the password
-            encrypted_password = self.cipher_suite.encrypt(password.encode()).decode()
-            self.settings_manager.add_or_update("password",encrypted_password)
-        else:
-            if "password" in self.settings_manager.settings:
-                self.settings_manager.delete("password")
+        if url:
+            self.settings_manager.add_or_update("vault_url", url)
+        elif "vault_url" in self.settings_manager.settings:
+                self.settings_manager.delete("vault_url")
 
-        if username:
-            self.settings_manager.add_or_update("username", username)
-        else:
-            if "username" in self.settings_manager.settings:
-                self.settings_manager.delete("username")
+        if secret_id:
+            self.settings_manager.add_or_update("secret_id", secret_id)
+        elif "secret_id" in self.settings_manager.settings:
+            self.settings_manager.delete("secret_id")
+
+        if role_id:
+            self.settings_manager.add_or_update("role_id", role_id)
+        elif "role_id" in self.settings_manager.settings:
+            self.settings_manager.delete("role_id")
 
     def load_theme_mode(self):
         # Load settings and set current theme
@@ -160,7 +167,7 @@ class SettingsFrame(ctk.CTkFrame):
 
     def save_all_settings(self):
         # self.set_debugger_directory_settings()
-        self.set_credential_data_settings()
+        self.set_healthcheck_data_settings()
         self.settings_manager.save_settings()
 
         # Confirmation message

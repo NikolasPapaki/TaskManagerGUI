@@ -1,5 +1,7 @@
 import customtkinter as ctk
-from SharedObjects import Environments
+from urllib3 import request
+
+from SharedObjects import Environments, Settings
 import re
 import threading
 import os
@@ -8,12 +10,14 @@ from datetime import datetime
 from tkinter import messagebox
 from custom_widgets import CustomInputDialog
 import string
-
+import requests
 
 def task_name_sanitize(task_name) -> str:
     """Sanitize the task name by replacing invalid characters with underscores."""
     return re.sub(r'[\\/:"*?<>| ]', '_', task_name)
 
+def sanitize_password(password):
+    return password.replace("^", "^^")
 
 def _pad_names(names, max_length):
     return [name.ljust(max_length) for name in names]
@@ -26,7 +30,10 @@ class HealthCheckFrame(ctk.CTkFrame):
         super().__init__(parent)
 
         self.parent = parent
-        self.environment_manager = Environments()  # Assuming this manages environment data
+        self.environment_manager = Environments(parent=self)  # Assuming this manages environment data
+        self.settings_manager = Settings()
+        self.client_token = None
+
 
         self.combobox_width = 350
 
@@ -65,11 +72,7 @@ class HealthCheckFrame(ctk.CTkFrame):
 
         # Button configurations
         button_configs = [
-            {"command": lambda: self.run_command(["connect {user}/{password}@{tns}"], "Button 1"), "name": "Button 1"},
-            {"command": lambda: self.run_command(["template2"], "Button 2"), "name": "Button 2"},
-            {"command": lambda: self.run_command(["template3"], "Button 3"), "name": "Button 3"},
-            {"command": lambda: self.run_command(["template4"], "Button 4"), "name": "Button 4"},
-            {"command": lambda: self.run_command(["template5"], "Button 5"), "name": "Button 5"},
+            {"command": lambda: self.run_command([""], "Button 1"), "name": "Button 1"},
         ]
 
         # Create and pack buttons, storing references
@@ -82,7 +85,7 @@ class HealthCheckFrame(ctk.CTkFrame):
             button.pack(side="top", fill="x", pady=5, padx=5)
             self.buttons[config["name"]] = button
 
-    def run_command(self, templates, name):
+    def run_command(self, templates, name ):
         threading.Thread(target=self.run_commands_thread, args=[templates, name]).start()
 
     def run_commands_thread(self, templates, name):
@@ -117,7 +120,8 @@ class HealthCheckFrame(ctk.CTkFrame):
                             check=True,
                             stdout=log_file,  # Log standard output to the file
                             stderr=log_file,  # Log errors to the same file
-                            text=True  # Ensure output is in text format
+                            text=True,  # Ensure output is in text format
+                            timeout=120
                         )
 
                         if result.returncode != 0:
@@ -125,6 +129,10 @@ class HealthCheckFrame(ctk.CTkFrame):
                             messagebox.showerror("Error",
                                                  f"Command '{command}' failed with exit code {result.returncode}.")
                             break
+
+                    except subprocess.TimeoutExpired as e:
+                        messagebox.showerror("Error",f"Command '{command}' took more then 2 minutes")
+                        break
 
                     except subprocess.CalledProcessError as e:
                         # Log the error to the file and show a messagebox
@@ -144,6 +152,16 @@ class HealthCheckFrame(ctk.CTkFrame):
                         messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
                         break
         finally:
+            with open(log_file_path, "r") as log_file:
+                log_content = log_file.read()
+                if len(log_content) > 0:
+                    if messagebox.askyesno("Completed", f"Task {name} has been completed successfully.\n"
+                                                        "Would you like to view the log output?"):
+                        with open(log_file_path, "r") as log_file:
+                            log_content = log_file.read()
+                        # Display the log content in a popup
+                        self.show_log_popup(log_content)
+
             self._configure_buttons("normal")
 
     def build_command(self, template):
@@ -174,6 +192,18 @@ class HealthCheckFrame(ctk.CTkFrame):
             # Use selected environment for placeholders
             placeholder_values = self.environment_manager.get_environment(selected_environment)
 
+            fields = [field_name for _, field_name, _, _ in string.Formatter().parse(template) if field_name]
+
+            missing_keys = [key for key in fields if key and key not in placeholder_values]
+
+            if missing_keys:
+                for missing_key in missing_keys:
+                    success, password = self.get_credentials(missing_key, placeholder_values.get("service_name"))
+                    if success:
+                        placeholder_values[missing_key] = password
+                    else:
+                        return None, template
+
         try:
             # Use str.format() to replace placeholders in the template
             formatted_command = template.format(**placeholder_values)
@@ -186,3 +216,65 @@ class HealthCheckFrame(ctk.CTkFrame):
         """Configure all buttons to the specified state."""
         for button in self.buttons.values():
             button.configure(state=state)
+
+    def show_log_popup(self, log_content):
+        """Display the log content in a modal, scrollable popup window using CustomTkinter."""
+        log_window = ctk.CTkToplevel(self)
+        log_window.title("Log Output")
+
+        # Center the popup in the parent window
+        parent_x = self.winfo_rootx()
+        parent_y = self.winfo_rooty()
+        parent_width = self.winfo_width()
+        parent_height = self.winfo_height()
+
+        popup_width = 600
+        popup_height = 400
+        position_x = parent_x + (parent_width - popup_width) // 2
+        position_y = parent_y + (parent_height - popup_height) // 2
+
+        log_window.geometry(f"{popup_width}x{popup_height}+{position_x}+{position_y}")
+
+        # Make the popup modal
+        log_window.transient(self)  # Set the popup as a child of the parent window
+        log_window.grab_set()  # Disable interaction with the parent window
+
+        # Create a frame to hold the Textbox and scrollbar
+        frame = ctk.CTkFrame(log_window)
+        frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Create the CTkTextbox
+        text_widget = ctk.CTkTextbox(frame, wrap="word", font=("Arial", 12))
+        text_widget.insert("0.0", log_content)  # Insert the log content at the start
+        text_widget.configure(state="disabled")  # Make the textbox read-only
+        text_widget.pack(side="left", fill="both", expand=True)
+
+        # Wait for the popup to close
+        log_window.wait_window()
+
+    def get_credentials(self, username, service_name):
+        if self.client_token is None:
+            build_data = f'"role_id": "{str(self.settings_manager.get("role_id"))}", "secret_id": "{str(self.settings_manager.get("secret_id"))}"'
+
+            client_token_response = requests.post(self.settings_manager.get("vault_url") + "v1/auth/approle/login",
+                                                  headers={"Content-Type": "application/json"},
+                                                  data = build_data,
+                                                  verify=False)
+
+            if client_token_response.status_code != 200:
+                messagebox.showerror("Error",
+                                     f"Failed to retrieve client token for vault. Status code {client_token_response.status_code}")
+                return False, None
+
+            self.client_token = client_token_response.json().get("auth").get("client_token")
+
+        user_category = "app" if "app" in username.lower() else "admin"
+        url = f"{self.settings_manager.get('vault_url')}v1//secret/tctprime%2Fdb%2Foracle%2F{user_category}%2F{service_name.lower()}%2Fprime%2F{username.lower()}"
+        response = requests.get(url, headers={"X-Vault-Token": self.client_token}, verify=False)
+
+        if response.status_code != 200:
+            messagebox.showerror("Error",
+                                 f"Failed to retrieve credentials for {service_name}. Status code {response.status_code}")
+            return False, None
+
+        return True, sanitize_password(response.json().get('data').get('password'))
