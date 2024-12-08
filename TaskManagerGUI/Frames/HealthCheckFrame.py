@@ -1,6 +1,4 @@
 import customtkinter as ctk
-from urllib3 import request
-
 from SharedObjects import Environments, Settings
 import re
 import threading
@@ -11,6 +9,7 @@ from tkinter import messagebox
 from custom_widgets import CustomInputDialog
 import string
 import requests
+import json
 
 def task_name_sanitize(task_name) -> str:
     """Sanitize the task name by replacing invalid characters with underscores."""
@@ -60,8 +59,12 @@ class HealthCheckFrame(ctk.CTkFrame):
             master=self.environment_frame,
             values=self.environments,
             width=self.combobox_width,
+            state="readonly"
         )
+        self.environment_combobox.set(self.environments[0])
         self.environment_combobox.pack(pady=10, padx=10)
+
+
 
         # Create a button frame
         self.button_frame = ctk.CTkFrame(self)
@@ -70,10 +73,23 @@ class HealthCheckFrame(ctk.CTkFrame):
         # Store buttons in a dictionary for easy management
         self.buttons = {}
 
-        # Button configurations
-        button_configs = [
-            {"command": lambda: self.run_command([""], "Button 1"), "name": "Button 1"},
-        ]
+        if os.path.exists('healthcheck.json'):
+            with open('healthcheck.json', "r") as file:
+                try:
+                    buttons_dict = json.load(file)
+                except json.JSONDecodeError:
+                    print("Invalid JSON format. Starting with empty settings.")
+
+        button_configs = []
+
+        if buttons_dict:
+            for button in buttons_dict:
+                # Use a default argument to capture the current button value
+                button_configs.append({
+                    "command": lambda btn=button: self.run_command(buttons_dict[btn], btn),
+                    "name": button
+                })
+
 
         # Create and pack buttons, storing references
         for config in button_configs:
@@ -171,22 +187,26 @@ class HealthCheckFrame(ctk.CTkFrame):
         if selected_environment == "Custom":
             # Prompt the user for inputs using CustomInputDialog
             fields = [field_name for _, field_name, _, _ in string.Formatter().parse(template) if field_name]
-            dialog = CustomInputDialog(
-                title="Provide Environment Details",
-                parent=self,
-                fields=fields
-            )
-            result = dialog.show()
 
-            # If the user cancels the dialog, return the original template
-            if result is None:
-                return None, template
+            if fields:
+                dialog = CustomInputDialog(
+                    title="Provide Environment Details",
+                    parent=self,
+                    fields=fields
+                )
+                result = dialog.show()
 
-            placeholder_values = {field: dialog.result[idx].strip() for idx, field in enumerate(fields)}
-            print(placeholder_values)
+                # If the user cancels the dialog, return the original template
+                if result is None:
+                    return None, template
 
-            # Check if any required field is empty
-            if any(value == "" for value in placeholder_values.values()):
+                placeholder_values = {field: dialog.result[idx].strip() for idx, field in enumerate(fields)}
+
+                # Check if any required field is empty
+                if any(value == "" for value in placeholder_values.values()):
+                    return None, template
+            else:
+                messagebox.showerror("Error", f"There was an error trying to find the field required for template '{template}'")
                 return None, template
         else:
             # Use selected environment for placeholders
@@ -194,19 +214,27 @@ class HealthCheckFrame(ctk.CTkFrame):
 
             fields = [field_name for _, field_name, _, _ in string.Formatter().parse(template) if field_name]
 
-            missing_keys = [key for key in fields if key and key not in placeholder_values]
+            if fields:
 
-            if missing_keys:
-                for missing_key in missing_keys:
-                    success, password = self.get_credentials(missing_key, placeholder_values.get("service_name"))
-                    if success:
-                        placeholder_values[missing_key] = password
-                    else:
-                        return None, template
+                missing_keys = [key for key in fields if key and key not in placeholder_values]
+
+                if missing_keys:
+                    for missing_key in missing_keys:
+                        success, password = self.get_credentials(missing_key, placeholder_values.get("service_name"))
+                        if success:
+                            placeholder_values[missing_key] = password
+                        else:
+                            return None, template
+            else:
+                messagebox.showerror("Error", f"There was an error trying to find the field required for template '{template}'")
+                return None, template
 
         try:
             # Use str.format() to replace placeholders in the template
             formatted_command = template.format(**placeholder_values)
+
+            if "sqlplus" in formatted_command:
+                formatted_command = 'echo "exit" | '+ formatted_command
             return True, formatted_command
         except KeyError as e:
             print(f"Error: Missing placeholder {e} in template.")
