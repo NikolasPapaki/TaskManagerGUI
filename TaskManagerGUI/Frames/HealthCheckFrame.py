@@ -40,7 +40,7 @@ class HealthCheckFrame(ctk.CTkFrame):
 
         # Pad environment options for consistent dropdown width
         self.environments = _pad_names(
-            self.environment_manager.get_environments() + ["Custom"],
+            self.environment_manager.get_environments(),
             int(self.combobox_width // 4.3)
         )
 
@@ -174,11 +174,22 @@ class HealthCheckFrame(ctk.CTkFrame):
             log_content = log_file.read()
 
             if "ORA-01017" in log_content:
-                messagebox.showerror("Error", "Password incorrect. Please check your credentials.")
+                if self.settings_manager.get("save_healthcheck_credentials_locally", False):
+                    if self.vault_defined():
+                        messagebox.showerror("Error", "Incorrect password.\n Password will be deleted locally and pulled from vault next run")
+                        select_env = self.environment_manager.get_environment(self.environment_combobox.get().strip()).get('service_name')
+                        self.credential_manager.delete(select_env)
+                    else:
+                        messagebox.showerror("Error",
+                                             "Incorrect password.\n Please check environment_credentials.json")
+                else:
+                    if self.vault_defined():
+                        messagebox.showerror("Error", f"Incorrect password error. Something went wrong with vault")
+                    else:
+                        messagebox.showerror("Error", f"Incorrect password provided")
 
             if len(log_content) > 0:
-                if messagebox.askyesno("Completed", f"Task {name} has been completed successfully.\n"
-                                                    "Would you like to view the log output?"):
+                if messagebox.askyesno("Finished!", f"Would you like to view the log output?"):
                     with open(log_file_path, "r") as log_file:
                         log_content = log_file.read()
                     # Display the log content in a popup
@@ -186,6 +197,7 @@ class HealthCheckFrame(ctk.CTkFrame):
             else:
                 log_file.close()
                 os.remove(log_file_path)
+
 
             self._configure_buttons("normal")
 
@@ -292,7 +304,7 @@ class HealthCheckFrame(ctk.CTkFrame):
         if self.credential_manager.exists(service_name, username):
             return True, sanitize_password(self.credential_manager.get(service_name).get(username))
 
-        elif self.settings_manager.get("role_id") and self.settings_manager.get("secret_id") and self.settings_manager.get("vault_url"):
+        elif self.vault_defined:
 
             if self.client_token is None:
                 build_data = f'"role_id": "{str(self.settings_manager.get("role_id"))}", "secret_id": "{str(self.settings_manager.get("secret_id"))}"'
@@ -344,3 +356,6 @@ class HealthCheckFrame(ctk.CTkFrame):
                     return True, result[0] # We only have password here
             else:
                 return False, None
+
+    def vault_defined(self) -> bool:
+        return self.settings_manager.get("role_id") and self.settings_manager.get("secret_id") and self.settings_manager.get("vault_url")
