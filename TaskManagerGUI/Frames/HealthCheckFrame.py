@@ -32,6 +32,7 @@ class HealthCheckFrame(ctk.CTkFrame):
         self.environment_manager = Environments(parent=self)  # Assuming this manages environment data
         self.settings_manager = Settings()
         self.client_token = None
+        self.placeholder_values = None
 
 
         self.combobox_width = 350
@@ -107,7 +108,6 @@ class HealthCheckFrame(ctk.CTkFrame):
     def run_commands_thread(self, templates, name):
         """Run a series of subprocesses with progress tracking and log output/errors."""
         self._configure_buttons("disabled")
-
         # Ensure the task_logs directory exists
         log_dir = "task_logs"
         os.makedirs(log_dir, exist_ok=True)
@@ -168,15 +168,18 @@ class HealthCheckFrame(ctk.CTkFrame):
                         messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
                         break
         finally:
-            with open(log_file_path, "r") as log_file:
-                log_content = log_file.read()
-                if len(log_content) > 0:
-                    if messagebox.askyesno("Completed", f"Task {name} has been completed successfully.\n"
-                                                        "Would you like to view the log output?"):
-                        with open(log_file_path, "r") as log_file:
-                            log_content = log_file.read()
-                        # Display the log content in a popup
-                        self.show_log_popup(log_content)
+            log_file = open(log_file_path, "r")
+            log_content = log_file.read()
+            if len(log_content) > 0:
+                if messagebox.askyesno("Completed", f"Task {name} has been completed successfully.\n"
+                                                    "Would you like to view the log output?"):
+                    with open(log_file_path, "r") as log_file:
+                        log_content = log_file.read()
+                    # Display the log content in a popup
+                    self.show_log_popup(log_content)
+            else:
+                log_file.close()
+                os.remove(log_file_path)
 
             self._configure_buttons("normal")
 
@@ -200,29 +203,29 @@ class HealthCheckFrame(ctk.CTkFrame):
                 if result is None:
                     return None, template
 
-                placeholder_values = {field: dialog.result[idx].strip() for idx, field in enumerate(fields)}
+                self.placeholder_values = {field: dialog.result[idx].strip() for idx, field in enumerate(fields)}
 
                 # Check if any required field is empty
-                if any(value == "" for value in placeholder_values.values()):
+                if any(value == "" for value in self.placeholder_values.values()):
                     return None, template
             else:
                 messagebox.showerror("Error", f"There was an error trying to find the field required for template '{template}'")
                 return None, template
         else:
             # Use selected environment for placeholders
-            placeholder_values = self.environment_manager.get_environment(selected_environment)
+            print(self.environment_manager.get_environment(selected_environment))
+            self.placeholder_values = self.environment_manager.get_environment(selected_environment)
 
             fields = [field_name for _, field_name, _, _ in string.Formatter().parse(template) if field_name]
-
             if fields:
 
-                missing_keys = [key for key in fields if key and key not in placeholder_values]
+                missing_keys = [key for key in fields if key and key not in self.placeholder_values]
 
                 if missing_keys:
                     for missing_key in missing_keys:
-                        success, password = self.get_credentials(missing_key, placeholder_values.get("service_name"))
+                        success, password = self.get_credentials(missing_key, self.placeholder_values.get("service_name"))
                         if success:
-                            placeholder_values[missing_key] = password
+                            self.placeholder_values[missing_key] = password
                         else:
                             return None, template
             else:
@@ -231,13 +234,13 @@ class HealthCheckFrame(ctk.CTkFrame):
 
         try:
             # Use str.format() to replace placeholders in the template
-            formatted_command = template.format(**placeholder_values)
+            formatted_command = template.format(**self.placeholder_values)
 
             if "sqlplus" in formatted_command:
                 formatted_command = 'echo "exit" | '+ formatted_command
             return True, formatted_command
+
         except KeyError as e:
-            print(f"Error: Missing placeholder {e} in template.")
             return False, template
 
     def _configure_buttons(self, state):
@@ -281,28 +284,48 @@ class HealthCheckFrame(ctk.CTkFrame):
         log_window.wait_window()
 
     def get_credentials(self, username, service_name):
-        if self.client_token is None:
-            build_data = f'"role_id": "{str(self.settings_manager.get("role_id"))}", "secret_id": "{str(self.settings_manager.get("secret_id"))}"'
+        if self.settings_manager.get("role_id") and self.settings_manager.get("secret_id") and self.settings_manager.get("vault_url"):
 
-            client_token_response = requests.post(self.settings_manager.get("vault_url") + "v1/auth/approle/login",
-                                                  headers={"Content-Type": "application/json"},
-                                                  data = build_data,
-                                                  verify=False)
+            if self.client_token is None:
+                build_data = f'"role_id": "{str(self.settings_manager.get("role_id"))}", "secret_id": "{str(self.settings_manager.get("secret_id"))}"'
 
-            if client_token_response.status_code != 200:
+                client_token_response = requests.post(self.settings_manager.get("vault_url") + "/v1/auth/approle/login",
+                                                      headers={"Content-Type": "application/json"},
+                                                      data = build_data,
+                                                      verify=False)
+
+                if client_token_response.status_code != 200:
+                    messagebox.showerror("Error",
+                                         f"Failed to retrieve client token for vault. Status code {client_token_response.status_code}")
+                    return False, None
+
+                self.client_token = client_token_response.json().get("auth").get("client_token")
+
+            user_category = "app" if "app" in username.lower() else "admin"
+            url = f"{self.settings_manager.get('vault_url')}/v1//secret/tctprime%2Fdb%2Foracle%2F{user_category}%2F{service_name.lower()}%2Fprime%2F{username.lower()}"
+            response = requests.get(url, headers={"X-Vault-Token": self.client_token}, verify=False)
+
+            if response.status_code != 200:
                 messagebox.showerror("Error",
-                                     f"Failed to retrieve client token for vault. Status code {client_token_response.status_code}")
+                                     f"Failed to retrieve credentials for {service_name}. Status code {response.status_code}")
                 return False, None
 
-            self.client_token = client_token_response.json().get("auth").get("client_token")
+            return True, sanitize_password(response.json().get('data').get('password'))
 
-        user_category = "app" if "app" in username.lower() else "admin"
-        url = f"{self.settings_manager.get('vault_url')}v1//secret/tctprime%2Fdb%2Foracle%2F{user_category}%2F{service_name.lower()}%2Fprime%2F{username.lower()}"
-        response = requests.get(url, headers={"X-Vault-Token": self.client_token}, verify=False)
+        else:
+            if messagebox.askyesno("Input Required", f"It appears that vault settings have not been configured\n Would you like to provide password manually"):
+                dialog = CustomInputDialog(
+                    title=f"Provide Password for {username.upper()} for {service_name}",
+                    parent=self,
+                    fields=["Password"]
+                )
+                result = dialog.show()
 
-        if response.status_code != 200:
-            messagebox.showerror("Error",
-                                 f"Failed to retrieve credentials for {service_name}. Status code {response.status_code}")
-            return False, None
+                # If the user cancels the dialog, return the original template
+                if result is None or result == "":
+                    return False, None
 
-        return True, sanitize_password(response.json().get('data').get('password'))
+                else:
+                    return True, result[0] # We only have password here
+            else:
+                return False, None

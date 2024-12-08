@@ -17,7 +17,7 @@ class Environments:
     def __init__(self, parent=None):
         self.parent = parent  # Parent window for dialogs
         self.Environments = {}  # Initialize an empty dictionary for environments
-        tns_path = self.get_tnsnames_path()  # Find or prompt for tnsnames.ora path
+        tns_path = self.get_tnsnames_path()
         if tns_path:
             self.load_tnsnames(tns_path)
 
@@ -53,23 +53,40 @@ class Environments:
         return None
 
     def load_tnsnames(self, tns_path):
-        """Load and parse the tnsnames.ora file, populating the Environments object."""
-        tns_pattern = re.compile(r"^\s*(\w+)\s*=\s*\(.*?\(SERVICE_NAME\s*=\s*(\w+)\)", re.IGNORECASE)
-        self.Environments = {}  # Clear the dictionary before loading new data
+        """Load and parse the tnsnames.ora file, capturing all details for each TNS entry."""
+        self.Environments = {}
+        entry_pattern = re.compile(
+            r"(?P<tns_name>\w+)\s*=\s*\(\s*DESCRIPTION\s*=\s*\(.*?ADDRESS\s*=\s*\(.*?HOST\s*=\s*(?P<host>[^\s)]+).*?PORT\s*=\s*(?P<port>[^\s)]+).*?\).*?CONNECT_DATA\s*=\s*\(.*?SERVICE_NAME\s*=\s*(?P<service_name>[^\s)]+).*?\).*?\)",
+            re.DOTALL | re.IGNORECASE,
+        )
 
         try:
             with open(tns_path, "r") as file:
-                for line in file:
-                    match = tns_pattern.match(line)
-                    if match:
-                        tns_name = match.group(1)
-                        service_name = match.group(2)
-                        self.Environments[tns_name] = {"service": service_name}
+                content = file.read()
+
+                # Normalize content for consistent parsing
+                normalized_content = re.sub(r"\s+", " ", content)
+                matches = entry_pattern.finditer(normalized_content)
+
+                for match in matches:
+                    tns_name = match.group("tns_name")
+                    host = match.group("host")
+                    port = match.group("port")
+                    service_name = match.group("service_name")
+
+                    # Store the parsed data in the dictionary
+                    self.Environments[tns_name] = {
+                        "tns_name": tns_name,
+                        "host": host,
+                        "port": port,
+                        "service_name": service_name
+                    }
 
             if not self.Environments:
                 messagebox.showwarning("Warning", f"No valid entries found in {tns_path}.")
         except Exception as e:
-            messagebox.showwarning("Warning",f"Error reading tnsnames.ora: {e}")
+            messagebox.showwarning("Warning", f"Error reading tnsnames.ora: {e}")
+
 
     def get_environment(self, key, default=None):
         """Get an environment by key."""
