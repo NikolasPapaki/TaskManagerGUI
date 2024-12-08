@@ -4,6 +4,7 @@ import customtkinter as ctk
 from tkinter import Tk
 from custom_widgets import CustomInputDialog
 from tkinter import messagebox
+from SharedObjects import Settings
 
 class Environments:
     _instance = None  # Class-level variable to store the single instance
@@ -17,7 +18,13 @@ class Environments:
     def __init__(self, parent=None):
         self.parent = parent  # Parent window for dialogs
         self.Environments = {}  # Initialize an empty dictionary for environments
-        tns_path = self.get_tnsnames_path()
+        self.settings_manager = Settings()
+
+        tns_path = self.settings_manager.get("tns_path", None)
+        if tns_path is None:
+            tns_path = self.get_tnsnames_path()
+            self.settings_manager.add_or_update("tns_path",tns_path)
+
         if tns_path:
             self.load_tnsnames(tns_path)
 
