@@ -49,12 +49,7 @@ class SettingsFrame(ctk.CTkFrame):
         self.theme_switch = ctk.CTkSwitch(body_frame, text="Dark Mode", command=self.change_theme_mode)
         self.theme_switch.pack(pady=10, anchor="w", padx=20)
 
-        self.sidebar_position_switch = ctk.CTkSwitch(
-            body_frame,
-            text="Sidebar on Right",
-            command=self.change_sidebar_position
-        )
-        self.sidebar_position_switch.pack(pady=10, anchor="w", padx=20)
+
 
         # Healthchecks frame
         healthcheck_frame = ctk.CTkFrame(body_frame)
@@ -88,12 +83,19 @@ class SettingsFrame(ctk.CTkFrame):
         self.role_id_entry = ctk.CTkEntry(self.role_id_entry_frame, width=300)
         self.role_id_entry.grid(row=0, column=1, pady=5, sticky="w")
 
+        self.healthcheck_credential_switch = ctk.CTkSwitch(
+            healthcheck_frame,
+            text="Locally Save Credentials",
+            command=self.set_healthcheck_save_credentials
+        )
+        self.healthcheck_credential_switch.pack(pady=10, anchor="w", padx=20)
+
         # Save button
         self.save_button = ctk.CTkButton(body_frame, text="Save Settings", command=self.save_all_settings)
         self.save_button.pack(pady=20)
 
         self.load_theme_mode()
-        self.load_sidebar_position()
+        self.load_healthcheck_save_credentials()
         self.load_healthcheck_data()
 
     def load_healthcheck_data(self):
@@ -145,28 +147,20 @@ class SettingsFrame(ctk.CTkFrame):
         ctk.set_appearance_mode(new_theme)
         self.settings_manager.add_or_update("theme", new_theme)
 
-    def load_sidebar_position(self):
+    def load_healthcheck_save_credentials(self):
         """Load sidebar position from settings."""
-        sidebar_position = self.settings_manager.get("sidebar_side", "left")  # Default to "left"
-        if sidebar_position == "right":
-            self.sidebar_position_switch.select()
+        option = self.settings_manager.get("save_healthcheck_credentials_locally", False)  # Default to "left"
+        if option == True:
+            self.healthcheck_credential_switch.select()
         else:
-            self.sidebar_position_switch.deselect()
+            self.healthcheck_credential_switch.deselect()
 
-    def change_sidebar_position(self):
+    def set_healthcheck_save_credentials(self):
         """Change sidebar position and save to settings."""
-        sidebar_position = "right" if self.sidebar_position_switch.get() else "left"
-        self.settings_manager.add_or_update("sidebar_side", sidebar_position)
+        option = True if self.healthcheck_credential_switch.get() else False
+        self.settings_manager.add_or_update("save_healthcheck_credentials_locally", option)
+        self.settings_manager.save_settings()
 
-        # Create and show the custom restart message dialog
-        restart_dialog = RestartMessageDialog(
-            self.parent,
-            message="The sidebar position has been updated.\n Restart the application for the changes to take effect.\n\nWould you like to restart now?"
-        )
-        user_response = restart_dialog.show()
-
-        if user_response == "restart_now":
-            restart_application_executable()  # Restart the application
 
     def save_all_settings(self):
         # self.set_debugger_directory_settings()

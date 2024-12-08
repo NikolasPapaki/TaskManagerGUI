@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from SharedObjects import Environments, Settings
+from SharedObjects import Environments, Settings, EnvironmentCredentials
 import re
 import threading
 import os
@@ -31,6 +31,7 @@ class HealthCheckFrame(ctk.CTkFrame):
         self.parent = parent
         self.environment_manager = Environments(parent=self)  # Assuming this manages environment data
         self.settings_manager = Settings()
+        self.credential_manager = EnvironmentCredentials()
         self.client_token = None
         self.placeholder_values = None
 
@@ -288,7 +289,10 @@ class HealthCheckFrame(ctk.CTkFrame):
         log_window.wait_window()
 
     def get_credentials(self, username, service_name):
-        if self.settings_manager.get("role_id") and self.settings_manager.get("secret_id") and self.settings_manager.get("vault_url"):
+        if self.credential_manager.exists(service_name, username):
+            return True, sanitize_password(self.credential_manager.get(service_name).get(username))
+
+        elif self.settings_manager.get("role_id") and self.settings_manager.get("secret_id") and self.settings_manager.get("vault_url"):
 
             if self.client_token is None:
                 build_data = f'"role_id": "{str(self.settings_manager.get("role_id"))}", "secret_id": "{str(self.settings_manager.get("secret_id"))}"'
@@ -314,12 +318,17 @@ class HealthCheckFrame(ctk.CTkFrame):
                                      f"Failed to retrieve credentials for {service_name}. Status code {response.status_code}")
                 return False, None
 
-            return True, sanitize_password(response.json().get('data').get('password'))
+            password = response.json().get('data').get('password')
+
+            if self.settings_manager.get("save_healthcheck_credentials_locally", False):
+                self.credential_manager.add_or_update(service_name,username, password)
+
+            return True, sanitize_password(password)
 
         else:
-            if messagebox.askyesno("Input Required", f"It appears that vault settings have not been configured\n Would you like to provide password manually"):
+            if messagebox.askyesno("Input Required", f"It appears that neither vault settings or default passwords have not been configured\n Would you like to provide password manually"):
                 dialog = CustomInputDialog(
-                    title=f"Provide Password for {username.upper()} for {service_name}",
+                    title=f"Provide Password for {username.upper()} of {service_name}",
                     parent=self,
                     fields=["Password"]
                 )
@@ -330,6 +339,8 @@ class HealthCheckFrame(ctk.CTkFrame):
                     return False, None
 
                 else:
+                    if self.settings_manager.get("save_healthcheck_credentials_locally", False):
+                        self.credential_manager.add_or_update(service_name, username, result[0])
                     return True, result[0] # We only have password here
             else:
                 return False, None
