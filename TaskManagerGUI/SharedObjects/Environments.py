@@ -23,9 +23,9 @@ class Environments:
         tns_path = self.settings_manager.get("tns_path", None)
         if tns_path is None:
             tns_path = self.get_tnsnames_path()
-            self.settings_manager.add_or_update("tns_path",tns_path)
 
         if tns_path:
+            self.settings_manager.add_or_update("tns_path", tns_path)
             self.load_tnsnames(tns_path)
 
     def get_tnsnames_path(self):
@@ -54,7 +54,7 @@ class Environments:
             result = dialog.show()
             if result and os.path.exists(result[0]):
                 return result[0]
-            else:
+            elif result:
                 messagebox.showwarning("Warning", "Invalid or non-existent file path provided.")
 
         return None

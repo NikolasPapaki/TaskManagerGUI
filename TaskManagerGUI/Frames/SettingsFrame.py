@@ -1,7 +1,8 @@
+import os
+from cryptography.fernet import Fernet
 import customtkinter as ctk
 from tkinter import messagebox
 import json
-from cryptography.fernet import Fernet
 from Update_module.Update_module import *
 from custom_widgets import RestartMessageDialog
 from SharedObjects import Settings
@@ -18,7 +19,6 @@ def load_or_generate_key():
             file.write(key)
         return key
 
-
 class SettingsFrame(ctk.CTkFrame):
     ORDER = 98
 
@@ -29,8 +29,10 @@ class SettingsFrame(ctk.CTkFrame):
 
         self.parent = parent
 
-        self.key = None
-        self.cipher_suite = None
+        # Load or generate encryption key and initialize cipher suite
+        self.key = load_or_generate_key()
+        self.cipher_suite = Fernet(self.key)
+
         # Title frame
         title_frame = ctk.CTkFrame(self)
         title_frame.pack(pady=(10, 5), padx=10, fill="x")
@@ -93,7 +95,6 @@ class SettingsFrame(ctk.CTkFrame):
         self.load_theme_mode()
         self.load_sidebar_position()
         self.load_healthcheck_data()
-        # self.load_debugger_directory()
 
     def load_healthcheck_data(self):
         """Load the username and encrypted password from settings.json and decrypt the password."""
@@ -101,11 +102,14 @@ class SettingsFrame(ctk.CTkFrame):
             self.url_entry.insert(0, self.settings_manager.settings["vault_url"])
 
         if "role_id" in self.settings_manager.settings:
-            self.role_id_entry.insert(0, self.settings_manager.settings["role_id"])
+            encrypted_role_id = self.settings_manager.settings["role_id"]
+            decrypted_role_id = self.cipher_suite.decrypt(encrypted_role_id.encode()).decode()
+            self.role_id_entry.insert(0, decrypted_role_id)
 
         if "secret_id" in self.settings_manager.settings:
-            self.secret_id_entry.insert(0, self.settings_manager.settings["secret_id"])
-
+            encrypted_secret_id = self.settings_manager.settings["secret_id"]
+            decrypted_secret_id = self.cipher_suite.decrypt(encrypted_secret_id.encode()).decode()
+            self.secret_id_entry.insert(0, decrypted_secret_id)
 
     def set_healthcheck_data_settings(self):
         """Save the username and encrypted password to settings.json."""
@@ -119,12 +123,14 @@ class SettingsFrame(ctk.CTkFrame):
                 self.settings_manager.delete("vault_url")
 
         if secret_id:
-            self.settings_manager.add_or_update("secret_id", secret_id)
+            encrypted_secret_id = self.cipher_suite.encrypt(secret_id.encode()).decode()
+            self.settings_manager.add_or_update("secret_id", encrypted_secret_id)
         elif "secret_id" in self.settings_manager.settings:
             self.settings_manager.delete("secret_id")
 
         if role_id:
-            self.settings_manager.add_or_update("role_id", role_id)
+            encrypted_role_id = self.cipher_suite.encrypt(role_id.encode()).decode()
+            self.settings_manager.add_or_update("role_id", encrypted_role_id)
         elif "role_id" in self.settings_manager.settings:
             self.settings_manager.delete("role_id")
 
@@ -134,12 +140,10 @@ class SettingsFrame(ctk.CTkFrame):
         ctk.set_appearance_mode(current_theme)
         self.theme_switch.select() if current_theme.lower() == "dark" else self.theme_switch.deselect()
 
-
     def change_theme_mode(self):
         new_theme = "dark" if self.theme_switch.get() else "light"
         ctk.set_appearance_mode(new_theme)
         self.settings_manager.add_or_update("theme", new_theme)
-
 
     def load_sidebar_position(self):
         """Load sidebar position from settings."""
@@ -163,7 +167,6 @@ class SettingsFrame(ctk.CTkFrame):
 
         if user_response == "restart_now":
             restart_application_executable()  # Restart the application
-
 
     def save_all_settings(self):
         # self.set_debugger_directory_settings()

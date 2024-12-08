@@ -132,7 +132,6 @@ class Tasks:
         return self.empty_dict
 
     def add_bulk_tasks(self, new_tasks):
-        print(new_tasks)
         """Add multiple tasks from a list of tasks with options to override or append commands."""
         for task in new_tasks.get("tasks"):
             task_name = task.get("name")

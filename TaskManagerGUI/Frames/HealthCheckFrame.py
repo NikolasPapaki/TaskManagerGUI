@@ -73,6 +73,7 @@ class HealthCheckFrame(ctk.CTkFrame):
 
         # Store buttons in a dictionary for easy management
         self.buttons = {}
+        buttons_dict = {}
 
         if os.path.exists('healthcheck.json'):
             with open('healthcheck.json', "r") as file:
@@ -170,6 +171,10 @@ class HealthCheckFrame(ctk.CTkFrame):
         finally:
             log_file = open(log_file_path, "r")
             log_content = log_file.read()
+
+            if "ORA-01017" in log_content:
+                messagebox.showerror("Error", "Password incorrect. Please check your credentials.")
+
             if len(log_content) > 0:
                 if messagebox.askyesno("Completed", f"Task {name} has been completed successfully.\n"
                                                     "Would you like to view the log output?"):
@@ -213,7 +218,6 @@ class HealthCheckFrame(ctk.CTkFrame):
                 return None, template
         else:
             # Use selected environment for placeholders
-            print(self.environment_manager.get_environment(selected_environment))
             self.placeholder_values = self.environment_manager.get_environment(selected_environment)
 
             fields = [field_name for _, field_name, _, _ in string.Formatter().parse(template) if field_name]
