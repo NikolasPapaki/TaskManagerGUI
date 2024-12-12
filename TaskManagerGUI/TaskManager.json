@@ -11,7 +11,7 @@
   },
   {
    "optionDest": "onefile",
-   "value": false
+   "value": true
   },
   {
    "optionDest": "console",
@@ -52,22 +52,6 @@
   {
    "optionDest": "bootloader_ignore_signals",
    "value": false
-  },
-  {
-   "optionDest": "datas",
-   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/custom_widgets;custom_widgets/"
-  },
-  {
-   "optionDest": "datas",
-   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/Frames;Frames/"
-  },
-  {
-   "optionDest": "datas",
-   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/Interface;Interface/"
-  },
-  {
-   "optionDest": "datas",
-   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/Update_module;Update_module/"
   },
   {
    "optionDest": "hiddenimports",
@@ -123,10 +107,6 @@
   },
   {
    "optionDest": "datas",
-   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/SharedObjects;SharedObjects/"
-  },
-  {
-   "optionDest": "datas",
    "value": "C:/Users/Nikolas/AppData/Local/Programs/Python/Python310/Lib/site-packages/customtkinter;customtkinter/"
   },
   {
@@ -136,6 +116,10 @@
   {
    "optionDest": "datas",
    "value": "C:/Users/Nikolas/AppData/Local/Programs/Python/Python310/Lib/site-packages/tkinterdnd2;tkinterdnd2/"
+  },
+  {
+   "optionDest": "datas",
+   "value": "G:/Git Hub/TaskManagerGUI/TaskManagerGUI/.venv/Lib/site-packages/;."
   }
  ],
  "nonPyinstallerOptions": {
