@@ -36,7 +36,7 @@ def load_or_generate_key():
 
 
 class HealthCheckFrame(ctk.CTkFrame):
-    ORDER = 95
+    ORDER = 3
 
     def __init__(self, parent, main_window):
         super().__init__(parent)
@@ -80,7 +80,8 @@ class HealthCheckFrame(ctk.CTkFrame):
             master=self.environment_frame,
             values=self.environments,
             width=self.combobox_width,
-            state="readonly"
+            state="readonly",
+            command=self.update_buttons_based_on_environment  # Call to update buttons when the environment changes
         )
         self.environment_combobox.set(self.environments[0])
         self.environment_combobox.pack(pady=10, padx=10)
@@ -88,8 +89,22 @@ class HealthCheckFrame(ctk.CTkFrame):
         # Create a button frame
         self.button_frame = ctk.CTkFrame(self)
         self.button_frame.pack(pady=10, padx=20, fill="x", expand=False)
+
         # Create buttons
         self.create_buttons_in_ui()
+
+    def update_buttons_based_on_environment(self, selected_environment):
+        """Update button visibility based on the selected environment."""
+        is_local = self.is_localdb(selected_environment)
+
+        # Hide/show buttons based on the "only_local" flag in their config
+        for button_name, button in self.buttons.items():
+            config = self.healthcheck_manager.get_config(button_name)
+            only_local = config.get("only_local", False)
+            if only_local and not is_local:
+                button.pack_forget()  # Hide the button if it's for local DB and the environment is not local
+            else:
+                button.pack(side="top", fill="x", pady=5, padx=5)  # Show the button if it matches the environment type
 
     def run_command(self, name, config):
         print(name)
@@ -112,6 +127,7 @@ class HealthCheckFrame(ctk.CTkFrame):
         host = environment_details.get("host", None)
         service = environment_details.get("service_name", None)
         port = environment_details.get("port", None)
+        run_as_sysdba = config.get('run_as_sysdba', False)
         unique_name = str(host) + "_" + str(service)
         loop_complete = True
         log_file = open(log_file_path, "w")
@@ -127,7 +143,7 @@ class HealthCheckFrame(ctk.CTkFrame):
                     loop_complete = False
                     break
                 else:
-                    errormsg = self.database_manager.connect(username=user, password=password, host=host, port=port, service_name=service)
+                    errormsg = self.database_manager.connect(username=user, password=password, host=host, port=port, service_name=service, sysdba=run_as_sysdba)
                     if errormsg:
                         if errormsg == self.database_manager.INVALID_PASS:
                             if self.credential_manager.exists(unique_name, user):
@@ -308,13 +324,14 @@ class HealthCheckFrame(ctk.CTkFrame):
         threading.Thread(target=lambda: self.create_buttons_in_ui_thread(), daemon=True).start()
 
     def create_buttons_in_ui_thread(self):
+        """Create and display buttons based on health check configuration."""
         for button in self.buttons.values():
             button.destroy()
 
         self.button_configs = []
 
         for name in self.healthcheck_manager.get_options():
-            # Use a default argument to capture the current button value
+            # Capture the current button config
             self.button_configs.append({
                 "command": lambda btn=name, conf=self.healthcheck_manager.get_config(name): self.run_command(btn, conf),
                 "name": name
@@ -327,38 +344,11 @@ class HealthCheckFrame(ctk.CTkFrame):
                 text=config["name"],
                 command=config["command"]
             )
-            button.pack(side="top", fill="x", pady=5, padx=5)
             self.buttons[config["name"]] = button
 
-        # Let's call the update_buttons in case we loaded with non-local environment to remove buttons
-        # self.update_buttons_in_ui(self.environment_combobox.get().strip())
+        # Call the update_buttons method to adjust visibility based on initial environment selection
+        self.update_buttons_based_on_environment(self.environment_combobox.get().strip())
 
     def on_show(self):
-        self.create_buttons_in_ui()
-
-    # def update_buttons_in_ui(self, selected_value):
-    #     buttons_to_add = []
-    #     buttons_to_remove = []
-    #     if self.is_localdb(selected_value):
-    #        pass
-    #     else:
-    #         pass
-    #
-    #     threading.Thread(target=lambda: self.update_buttons_in_ui_thread(buttons_to_add, buttons_to_remove), daemon=True).start()
-    #
-    # def update_buttons_in_ui_thread(self, buttons_to_add, buttons_to_remove):
-    #     # Remove unnecessary buttons
-    #     for button_name in buttons_to_remove:
-    #         self.buttons[button_name].destroy()
-    #         del self.buttons[button_name]
-    #
-    #     # Add buttons
-    #     for config in self.button_configs:
-    #         if config["name"] in buttons_to_add:
-    #             button = ctk.CTkButton(
-    #                 master=self.button_frame,
-    #                 text=config["name"],
-    #                 command=config["command"]
-    #             )
-    #             button.pack(side="top", fill="x", pady=5, padx=5)
-    #             self.buttons[config["name"]] = button
+        """Show the UI with the buttons created."""
+        self.update_buttons_based_on_environment(self.environment_combobox.get().strip())

@@ -7,6 +7,7 @@ class HealthCheckDialog(ctk.CTkToplevel):
         # Set default values
         if input_defaults is None:
             input_defaults = {
+                "procedure_name": "",
                 "users": "",
                 "run_as_sysdba": False,
                 "only_local": False,
@@ -18,45 +19,48 @@ class HealthCheckDialog(ctk.CTkToplevel):
         self.result = None
 
         # Set dialog dimensions
-        dialog_width = 500
+        dialog_width = 650
         dialog_height = 500
         self.geometry(f"{dialog_width}x{dialog_height}")
 
         # Center the dialog on the parent window
         self.center_dialog(parent, dialog_width, dialog_height)
 
-        # Configure grid layout
-        self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=3)
+        # Procedure name entry field
+        procedure_name_label = ctk.CTkLabel(self, text="Procedure Name:")
+        procedure_name_label.pack(padx=10, pady=5, anchor="w")
+        self.procedure_name_entry = ctk.CTkEntry(self)
+        self.procedure_name_entry.pack(padx=10, pady=5, fill="x")
+        self.procedure_name_entry.insert(0,  input_defaults.get("procedure_name", ""))
 
         # User entry field
         user_label = ctk.CTkLabel(self, text="Users:")
-        user_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        user_label.pack(padx=10, pady=5, anchor="w")
         self.user_entry = ctk.CTkEntry(self)
-        self.user_entry.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+        self.user_entry.pack(padx=10, pady=5, fill="x")
         self.user_entry.insert(0, input_defaults.get("users", ""))
 
         # Run as sysdba toggle
         self.sysdba_var = ctk.StringVar(value="on" if input_defaults.get("run_as_sysdba", False) else "off")
-        sysdba_toggle = ctk.CTkCheckBox(self, text="Run as sysdba", variable=self.sysdba_var, onvalue="on",
-                                        offvalue="off")
-        sysdba_toggle.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+        sysdba_toggle = ctk.CTkSwitch(self, text="Run as sysdba", variable=self.sysdba_var, onvalue="on",
+                                      offvalue="off")
+        sysdba_toggle.pack(padx=10, pady=5, anchor="w")
 
         # Only local toggle
         self.local_var = ctk.StringVar(value="on" if input_defaults.get("only_local", False) else "off")
-        local_toggle = ctk.CTkCheckBox(self, text="Only local", variable=self.local_var, onvalue="on", offvalue="off")
-        local_toggle.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+        local_toggle = ctk.CTkSwitch(self, text="Only local", variable=self.local_var, onvalue="on", offvalue="off")
+        local_toggle.pack(padx=10, pady=5, anchor="w")
 
         # PLSQL BLOCK big entry box
         plsql_label = ctk.CTkLabel(self, text="PLSQL BLOCK:")
-        plsql_label.grid(row=3, column=0, padx=10, pady=5, sticky="w")
-        self.plsql_textbox = ctk.CTkTextbox(self, height=15)
-        self.plsql_textbox.grid(row=4, column=0, columnspan=2,rowspan= 10, padx=10, pady=5, sticky="nsew")
+        plsql_label.pack(padx=10, pady=5, anchor="w")
+        self.plsql_textbox = ctk.CTkTextbox(self, height=10)
+        self.plsql_textbox.pack(padx=10, pady=5, fill="both", expand=True)
         self.plsql_textbox.insert("0.0", input_defaults.get("plsql_block", ""))
 
         # Buttons
         button_frame = ctk.CTkFrame(self, fg_color=self.cget("bg"))
-        button_frame.grid(row=5, column=0, columnspan=2, pady=10, sticky="ew")
+        button_frame.pack(pady=10, fill="x")
 
         ok_button = ctk.CTkButton(button_frame, text="OK", command=self._on_ok)
         ok_button.pack(side=ctk.LEFT, padx=10)
@@ -89,6 +93,7 @@ class HealthCheckDialog(ctk.CTkToplevel):
     def _on_ok(self):
         # Collect all values
         self.result = {
+            "procedure_name": self.procedure_name_entry.get().strip(),
             "users": self.user_entry.get().strip(),
             "run_as_sysdba": self.sysdba_var.get() == "on",
             "only_local": self.local_var.get() == "on",

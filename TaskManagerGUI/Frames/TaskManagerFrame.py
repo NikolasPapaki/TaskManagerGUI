@@ -10,7 +10,7 @@ from tkinterdnd2 import TkinterDnD, DND_FILES  # Import drag-and-drop support
 from custom_widgets import CustomInputDialog
 
 class TaskManagerFrame(ctk.CTkFrame):
-    ORDER = 3
+    ORDER = 4
 
     def __init__(self, parent, main_window):
         super().__init__(parent)
@@ -144,7 +144,7 @@ class TaskManagerFrame(ctk.CTkFrame):
         task_name = input_dialog.show()
 
         if task_name:
-            task_name = task_name.strip()
+            task_name = task_name[0].strip()
             # Check if the task name already exists
             if any(task["name"] == task_name for task in self.tasks_manager.get_tasks()):
                 messagebox.showerror("Error", "Task names must be unique.")
