@@ -28,6 +28,13 @@ class Settings:
         """Get a setting value with a default fallback."""
         return self.settings.get(key, default)
 
+
+    def exists(self, key):
+        if key in self.settings:
+            return True
+        else:
+            return False
+
     def add_or_update(self, key, value):
         """Add or update a setting and save the changes."""
         self.settings[key] = value

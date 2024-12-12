@@ -1,7 +1,5 @@
 import os
 import re
-import customtkinter as ctk
-from tkinter import Tk
 from custom_widgets import CustomInputDialog
 from tkinter import messagebox
 from SharedObjects import Settings
@@ -94,10 +92,10 @@ class Environments:
         except Exception as e:
             messagebox.showwarning("Warning", f"Error reading tnsnames.ora: {e}")
 
-
     def get_environment(self, key, default=None):
         """Get an environment by key."""
-        return self.Environments.get(key, default)
+        # Return copy so that changes made to the result won't affect self.Environments
+        return self.Environments.get(key, default).copy()
 
     def get_environments(self):
         """Get a list of all environment keys."""

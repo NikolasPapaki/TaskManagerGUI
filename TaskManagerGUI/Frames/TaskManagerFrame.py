@@ -2,13 +2,11 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import ttk, messagebox
 import datetime
-from SharedObjects import Tasks  # Import the Tasks shared object
-from custom_widgets import CustomInputDialog
+from SharedObjects import Tasks
 import json
 import os
 from Frames.TaskManagementLogsFrame import TaskManagementLogsFrame
 from tkinterdnd2 import TkinterDnD, DND_FILES  # Import drag-and-drop support
-from tkinter import filedialog
 from custom_widgets import CustomInputDialog
 
 class TaskManagerFrame(ctk.CTkFrame):

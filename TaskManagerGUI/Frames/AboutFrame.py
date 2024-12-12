@@ -10,23 +10,22 @@ class AboutFrame(ctk.CTkFrame):
         self.label.pack(pady=20)
 
         # App Information
-        self.app_name = "Task Manager"
+        self.app_name = "Core Dev Dashboard"
         self.version = VERSION
         self.last_updated = "November 11, 2024"
         self.description = "This app allows users to manage and run tasks efficiently."
         self.features = [
             "Feature 1: Task Creation",
             "Feature 2: Task execution",
-            "Feature 3: Retrieve Jenkins logs",
-            "Feature 4: Call an API (Under development)"
+            "Feature 3: Health Check"
         ]
         self.developer_name = "Nikolas Papaki"
-        self.developer_email = "nikolaspapakis@hotmail.com"
+        self.developer_email = "npapaki@tsys.com"
 
-        # Create Frames
-        self.create_frames()
+        # Create Frame
+        self.create_frame()
 
-    def create_frames(self):
+    def create_frame(self):
         # App Info Frame
         app_info_frame = ctk.CTkFrame(self)
         app_info_frame.pack(pady=(10, 5), padx=10, fill="x")

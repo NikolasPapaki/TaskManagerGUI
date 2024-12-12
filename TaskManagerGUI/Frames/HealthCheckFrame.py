@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from SharedObjects import Environments, Settings, EnvironmentCredentials
+from SharedObjects import Environments, Settings, EnvironmentCredentials, OracleDB, HealthCheck
 import re
 import threading
 import os
@@ -10,34 +10,53 @@ from custom_widgets import CustomInputDialog
 import string
 import requests
 import json
+from cryptography.fernet import Fernet
 
 def task_name_sanitize(task_name) -> str:
     """Sanitize the task name by replacing invalid characters with underscores."""
     return re.sub(r'[\\/:"*?<>| ]', '_', task_name)
 
 def sanitize_password(password):
-    return password.replace("^", "^^")
+    return password
 
 def _pad_names(names, max_length):
     return [name.ljust(max_length) for name in names]
 
+def load_or_generate_key():
+    """Load the encryption key from a file or generate a new one if not found."""
+    key_file = ".secret.key"
+    if os.path.exists(key_file):
+        with open(key_file, "rb") as file:
+            return file.read()
+    else:
+        key = Fernet.generate_key()
+        with open(key_file, "wb") as file:
+            file.write(key)
+        return key
+
 
 class HealthCheckFrame(ctk.CTkFrame):
-    ORDER = 96
+    ORDER = 95
 
     def __init__(self, parent, main_window):
         super().__init__(parent)
 
         self.parent = parent
-        self.environment_manager = Environments(parent=self)  # Assuming this manages environment data
+        self.environment_manager = Environments(parent=self)
         self.settings_manager = Settings()
         self.credential_manager = EnvironmentCredentials()
-        self.client_token = None
-        self.placeholder_values = None
+        self.database_manager = OracleDB()
+        self.healthcheck_manager = HealthCheck()
 
+        self.client_token = None
+        self.key = load_or_generate_key()
+        self.cipher_suite = Fernet(self.key)
+
+        # Store buttons in a dictionary for easy management
+        self.buttons = {}
+        self.button_configs = []
 
         self.combobox_width = 350
-
         # Pad environment options for consistent dropdown width
         self.environments = _pad_names(
             self.environment_manager.get_environments(),
@@ -66,48 +85,18 @@ class HealthCheckFrame(ctk.CTkFrame):
         self.environment_combobox.set(self.environments[0])
         self.environment_combobox.pack(pady=10, padx=10)
 
-
-
         # Create a button frame
         self.button_frame = ctk.CTkFrame(self)
         self.button_frame.pack(pady=10, padx=20, fill="x", expand=False)
+        # Create buttons
+        self.create_buttons_in_ui()
 
-        # Store buttons in a dictionary for easy management
-        self.buttons = {}
-        buttons_dict = {}
+    def run_command(self, name, config):
+        print(name)
+        print(config)
+        threading.Thread(target=self.run_commands_thread, args=[name, config]).start()
 
-        if os.path.exists('healthcheck.json'):
-            with open('healthcheck.json', "r") as file:
-                try:
-                    buttons_dict = json.load(file)
-                except json.JSONDecodeError:
-                    print("Invalid JSON format. Starting with empty settings.")
-
-        button_configs = []
-
-        if buttons_dict:
-            for button in buttons_dict:
-                # Use a default argument to capture the current button value
-                button_configs.append({
-                    "command": lambda btn=button: self.run_command(buttons_dict[btn], btn),
-                    "name": button
-                })
-
-
-        # Create and pack buttons, storing references
-        for config in button_configs:
-            button = ctk.CTkButton(
-                master=self.button_frame,
-                text=config["name"],
-                command=config["command"]
-            )
-            button.pack(side="top", fill="x", pady=5, padx=5)
-            self.buttons[config["name"]] = button
-
-    def run_command(self, templates, name ):
-        threading.Thread(target=self.run_commands_thread, args=[templates, name]).start()
-
-    def run_commands_thread(self, templates, name):
+    def run_commands_thread(self, name, config):
         """Run a series of subprocesses with progress tracking and log output/errors."""
         self._configure_buttons("disabled")
         # Ensure the task_logs directory exists
@@ -118,147 +107,70 @@ class HealthCheckFrame(ctk.CTkFrame):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
         log_file_path = f"{log_dir}/{task_name_sanitize(name)}_{timestamp}.log"
 
+        selected_environment = self.environment_combobox.get().strip()
+        environment_details = self.environment_manager.get_environment(selected_environment)
+        host = environment_details.get("host", None)
+        service = environment_details.get("service_name", None)
+        port = environment_details.get("port", None)
+        unique_name = str(host) + "_" + str(service)
+        loop_complete = True
+        log_file = open(log_file_path, "w")
+
         try:
-            with open(log_file_path, "w") as log_file:  # Open log file for writing
-                for i, template in enumerate(templates):
-                    success, command = self.build_command(template)
-                    # Check if build_command was canceled due to user not giving arguments
-                    if success is None:
-                        break
-                    # Check if build_command had errors then abort
-                    if not success:
-                        messagebox.showerror("Error", f"Failed to assign values to '{template}'.")
-                        break
+            for user in config.get("users", None).split(","):
+                # Get Password for user
+                success, password = self.get_credentials(username=user, service_name=environment_details.get("service_name"), unique_name=unique_name)
+                # Check if we retrived password
+                print(user)
+                print(password)
+                if not success:
+                    loop_complete = False
+                    break
+                else:
+                    errormsg = self.database_manager.connect(username=user, password=password, host=host, port=port, service_name=service)
+                    if errormsg:
+                        if errormsg == self.database_manager.INVALID_PASS:
+                            if self.credential_manager.exists(unique_name, user):
+                                messagebox.showerror("Error", "Incorrect password. Deleting local entry!")
+                                self.credential_manager.delete(unique_name)
+                            else:
+                                messagebox.showerror("Error", "Incorrect password. Something went wrong!")
+                        else:
+                            messagebox.showerror("Error", f"Something went wrong!\n {errormsg}")
 
-                    try:
-                        # Run the command and capture output and errors
-                        result = subprocess.run(
-                            command,
-                            shell=True,
-                            check=True,
-                            stdout=log_file,  # Log standard output to the file
-                            stderr=log_file,  # Log errors to the same file
-                            text=True,  # Ensure output is in text format
-                            timeout=120
-                        )
-
-                        if result.returncode != 0:
-                            log_file.write(f"Command failed with exit code {result.returncode}.\n")
-                            messagebox.showerror("Error",
-                                                 f"Command '{command}' failed with exit code {result.returncode}.")
-                            break
-
-                    except subprocess.TimeoutExpired as e:
-                        messagebox.showerror("Error",f"Command '{command}' took more then 2 minutes")
+                        loop_complete = False
                         break
+                    else:
+                        result = self.database_manager.execute(config.get("plsql_block", None))
+                        if result:
+                            for line in result:
+                                log_file.write(line + "\n")
 
-                    except subprocess.CalledProcessError as e:
-                        # Log the error to the file and show a messagebox
-                        log_file.write(f"Command failed with exit code {e.returncode}.\n")
-                        messagebox.showerror("Error", f"Command '{command}' failed with exit code {e.returncode}.")
-                        break
-
-                    except FileNotFoundError:
-                        # Log the error to the file and show a messagebox
-                        log_file.write(f"Command '{command}' not found.\n")
-                        messagebox.showerror("Error", f"Command '{command}' not found.")
-                        break
-
-                    except Exception as e:
-                        # Log the unexpected error to the file and show a messagebox
-                        log_file.write(f"An unexpected error occurred: {str(e)}\n")
-                        messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
-                        break
+                        self.database_manager.disconnect()
         finally:
             log_file = open(log_file_path, "r")
             log_content = log_file.read()
+            log_file.close()
 
-            if "ORA-01017" in log_content:
-                if self.settings_manager.get("save_healthcheck_credentials_locally", False):
-                    if self.vault_defined():
-                        messagebox.showerror("Error", "Incorrect password.\n Password will be deleted locally and pulled from vault next run")
-                        select_env = self.environment_manager.get_environment(self.environment_combobox.get().strip()).get('service_name')
-                        self.credential_manager.delete(select_env)
-                    else:
-                        messagebox.showerror("Error",
-                                             "Incorrect password.\n Please check environment_credentials.json")
+            if loop_complete:
+
+                if len(log_content) > 0:
+                    if messagebox.askyesno("Finished!", f"Would you like to view the log output?"):
+                        # Display the log content in a popup
+                        self.show_log_popup(log_content)
                 else:
-                    if self.vault_defined():
-                        messagebox.showerror("Error", f"Incorrect password error. Something went wrong with vault")
-                    else:
-                        messagebox.showerror("Error", f"Incorrect password provided")
-
-            if len(log_content) > 0:
-                if messagebox.askyesno("Finished!", f"Would you like to view the log output?"):
-                    with open(log_file_path, "r") as log_file:
-                        log_content = log_file.read()
-                    # Display the log content in a popup
-                    self.show_log_popup(log_content)
+                    messagebox.showinfo("Finished!", f"{name} has finished!")
+                    os.remove(log_file_path)
             else:
-                log_file.close()
-                os.remove(log_file_path)
-
+                if len(log_content) > 0:
+                    if messagebox.askyesno("Finished!", f"{name} has finished with errors. Would you like to view the log output?"):
+                        # Display the log content in a popup
+                        self.show_log_popup(log_content)
+                else:
+                    messagebox.showwarning("Finished!", f"{name} has finished with errors.")
+                    os.remove(log_file_path)
 
             self._configure_buttons("normal")
-
-    def build_command(self, template):
-        # Fetch the current environment from the combobox
-        selected_environment = self.environment_combobox.get().strip()
-
-        if selected_environment == "Custom":
-            # Prompt the user for inputs using CustomInputDialog
-            fields = [field_name for _, field_name, _, _ in string.Formatter().parse(template) if field_name]
-
-            if fields:
-                dialog = CustomInputDialog(
-                    title="Provide Environment Details",
-                    parent=self,
-                    fields=fields
-                )
-                result = dialog.show()
-
-                # If the user cancels the dialog, return the original template
-                if result is None:
-                    return None, template
-
-                self.placeholder_values = {field: dialog.result[idx].strip() for idx, field in enumerate(fields)}
-
-                # Check if any required field is empty
-                if any(value == "" for value in self.placeholder_values.values()):
-                    return None, template
-            else:
-                messagebox.showerror("Error", f"There was an error trying to find the field required for template '{template}'")
-                return None, template
-        else:
-            # Use selected environment for placeholders
-            self.placeholder_values = self.environment_manager.get_environment(selected_environment)
-
-            fields = [field_name for _, field_name, _, _ in string.Formatter().parse(template) if field_name]
-            if fields:
-
-                missing_keys = [key for key in fields if key and key not in self.placeholder_values]
-
-                if missing_keys:
-                    for missing_key in missing_keys:
-                        success, password = self.get_credentials(missing_key, self.placeholder_values.get("service_name"))
-                        if success:
-                            self.placeholder_values[missing_key] = password
-                        else:
-                            return None, template
-            else:
-                messagebox.showerror("Error", f"There was an error trying to find the field required for template '{template}'")
-                return None, template
-
-        try:
-            # Use str.format() to replace placeholders in the template
-            formatted_command = template.format(**self.placeholder_values)
-
-            if "sqlplus" in formatted_command:
-                formatted_command = 'echo "exit" | '+ formatted_command
-            return True, formatted_command
-
-        except KeyError as e:
-            return False, template
 
     def _configure_buttons(self, state):
         """Configure all buttons to the specified state."""
@@ -294,24 +206,28 @@ class HealthCheckFrame(ctk.CTkFrame):
         # Create the CTkTextbox
         text_widget = ctk.CTkTextbox(frame, wrap="word", font=("Arial", 12))
         text_widget.insert("0.0", log_content)  # Insert the log content at the start
-        text_widget.configure(state="disabled")  # Make the textbox read-only
+        text_widget.configure(state="disabled")
         text_widget.pack(side="left", fill="both", expand=True)
 
         # Wait for the popup to close
         log_window.wait_window()
 
-    def get_credentials(self, username, service_name):
-        if self.credential_manager.exists(service_name, username):
-            return True, sanitize_password(self.credential_manager.get(service_name).get(username))
+    def get_credentials(self, username, service_name, unique_name):
+        if self.credential_manager.exists(unique_name, username):
+            return True, sanitize_password(self.credential_manager.get(unique_name).get(username))
 
-        elif self.vault_defined:
+        elif self.vault_defined() and self.is_rds():
 
             if self.client_token is None:
-                build_data = f'"role_id": "{str(self.settings_manager.get("role_id"))}", "secret_id": "{str(self.settings_manager.get("secret_id"))}"'
+
+                decrypted_role_id = self.cipher_suite.decrypt(self.settings_manager.settings["role_id"].encode()).decode()
+                decrypted_secret_id = self.cipher_suite.decrypt(self.settings_manager.settings["secret_id"].encode()).decode()
+
+                build_data = f'"role_id": "{str(decrypted_role_id)}", "secret_id": "{str(decrypted_secret_id)}"'
 
                 client_token_response = requests.post(self.settings_manager.get("vault_url") + "/v1/auth/approle/login",
                                                       headers={"Content-Type": "application/json"},
-                                                      data = build_data,
+                                                      data="{" + build_data + "}",
                                                       verify=False)
 
                 if client_token_response.status_code != 200:
@@ -322,7 +238,9 @@ class HealthCheckFrame(ctk.CTkFrame):
                 self.client_token = client_token_response.json().get("auth").get("client_token")
 
             user_category = "app" if "app" in username.lower() else "admin"
-            url = f"{self.settings_manager.get('vault_url')}/v1//secret/tctprime%2Fdb%2Foracle%2F{user_category}%2F{service_name.lower()}%2Fprime%2F{username.lower()}"
+            prime_pattern = r"\w+pd\d+"
+            system = "prime" if re.match(prime_pattern, service_name.lower()) else "online"
+            url = f"{self.settings_manager.get('vault_url')}/v1/secret/tct{system}%2Fdb%2Foracle%2F{user_category}%2Feu-central-1-{service_name.lower()}%2F{system}%2F{username.lower()}"
             response = requests.get(url, headers={"X-Vault-Token": self.client_token}, verify=False)
 
             if response.status_code != 200:
@@ -333,11 +251,11 @@ class HealthCheckFrame(ctk.CTkFrame):
             password = response.json().get('data').get('password')
 
             if self.settings_manager.get("save_healthcheck_credentials_locally", False):
-                self.credential_manager.add_or_update(service_name,username, password)
+                self.credential_manager.add_or_update(unique_name, username, password)
 
             return True, sanitize_password(password)
 
-        else:
+        elif self.is_rds():
             if messagebox.askyesno("Input Required", f"It appears that neither vault settings or default passwords have not been configured\n Would you like to provide password manually"):
                 dialog = CustomInputDialog(
                     title=f"Provide Password for {username.upper()} of {service_name}",
@@ -352,10 +270,95 @@ class HealthCheckFrame(ctk.CTkFrame):
 
                 else:
                     if self.settings_manager.get("save_healthcheck_credentials_locally", False):
-                        self.credential_manager.add_or_update(service_name, username, result[0])
-                    return True, result[0] # We only have password here
+                        self.credential_manager.add_or_update(unique_name, username, result[0])
+                    return True, sanitize_password(result[0]) # We only have password here
+            else:
+                return False, None
+        else:
+            if messagebox.askyesno("Input Required", f"It appears this is not an RDS instance and default passwords have not been configured\n Would you like to provide password manually"):
+                dialog = CustomInputDialog(
+                    title=f"Provide Password for {username.upper()} of {service_name}",
+                    parent=self,
+                    fields=["Password"]
+                )
+                result = dialog.show()
+
+                # If the user cancels the dialog, return the original template
+                if result is None or result == "":
+                    return False, None
+
+                else:
+                    if self.settings_manager.get("save_healthcheck_credentials_locally", False):
+                        self.credential_manager.add_or_update(unique_name, username, result[0])
+                    return True, sanitize_password(result[0]) # We only have password here
             else:
                 return False, None
 
+
     def vault_defined(self) -> bool:
-        return self.settings_manager.get("role_id") and self.settings_manager.get("secret_id") and self.settings_manager.get("vault_url")
+        return self.settings_manager.exists("role_id") and self.settings_manager.exists("secret_id") and self.settings_manager.exists("vault_url")
+
+    def is_rds(self) -> bool:
+        return True if "rds.amazonaws.com" in self.environment_manager.get_environment(self.environment_combobox.get().strip()).get("host") else False
+
+    def is_localdb(self, selected_environment) -> bool:
+        return True if any(env in self.environment_manager.get_environment(selected_environment.strip()).get("host") for env in ["localhost", "127.0.0.1"]) else False
+
+    def create_buttons_in_ui(self):
+        threading.Thread(target=lambda: self.create_buttons_in_ui_thread(), daemon=True).start()
+
+    def create_buttons_in_ui_thread(self):
+        for button in self.buttons.values():
+            button.destroy()
+
+        self.button_configs = []
+
+        for name in self.healthcheck_manager.get_options():
+            # Use a default argument to capture the current button value
+            self.button_configs.append({
+                "command": lambda btn=name, conf=self.healthcheck_manager.get_config(name): self.run_command(btn, conf),
+                "name": name
+            })
+
+        # Create and pack buttons, storing references
+        for config in self.button_configs:
+            button = ctk.CTkButton(
+                master=self.button_frame,
+                text=config["name"],
+                command=config["command"]
+            )
+            button.pack(side="top", fill="x", pady=5, padx=5)
+            self.buttons[config["name"]] = button
+
+        # Let's call the update_buttons in case we loaded with non-local environment to remove buttons
+        # self.update_buttons_in_ui(self.environment_combobox.get().strip())
+
+    def on_show(self):
+        self.create_buttons_in_ui()
+
+    # def update_buttons_in_ui(self, selected_value):
+    #     buttons_to_add = []
+    #     buttons_to_remove = []
+    #     if self.is_localdb(selected_value):
+    #        pass
+    #     else:
+    #         pass
+    #
+    #     threading.Thread(target=lambda: self.update_buttons_in_ui_thread(buttons_to_add, buttons_to_remove), daemon=True).start()
+    #
+    # def update_buttons_in_ui_thread(self, buttons_to_add, buttons_to_remove):
+    #     # Remove unnecessary buttons
+    #     for button_name in buttons_to_remove:
+    #         self.buttons[button_name].destroy()
+    #         del self.buttons[button_name]
+    #
+    #     # Add buttons
+    #     for config in self.button_configs:
+    #         if config["name"] in buttons_to_add:
+    #             button = ctk.CTkButton(
+    #                 master=self.button_frame,
+    #                 text=config["name"],
+    #                 command=config["command"]
+    #             )
+    #             button.pack(side="top", fill="x", pady=5, padx=5)
+    #             self.buttons[config["name"]] = button
