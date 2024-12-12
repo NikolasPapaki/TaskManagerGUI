@@ -14,3 +14,4 @@ from .TaskLogsFrame import TaskLogsFrame
 # from .ApiRequstFrame import ApiRequestFrame
 # from .DebugFrame import DebugFrame
 from .HealthCheckFrame import HealthCheckFrame
+from .HealthCheckConfigurationFrame import HealthCheckConfigurationFrame
