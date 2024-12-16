@@ -15,9 +15,9 @@ else:  # Fallback for normal Python execution
 import requests
 requests.utils.DEFAULT_CA_BUNDLE_PATH = certifi_path
 
-# EXECUTABLE_NAME = "python main.py"
+# EXECUTABLE_NAME = "python main.pyw"
 EXECUTABLE_NAME = "TaskManager.exe"
-VERSION = "v4.2.0"
+VERSION = "v1.0.0"
 
 def restart_application_executable():
     """

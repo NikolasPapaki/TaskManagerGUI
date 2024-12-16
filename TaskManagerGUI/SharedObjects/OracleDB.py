@@ -27,7 +27,7 @@ class OracleDB:
 
             self.conn = oracledb.connect(user=username, password=password,
                                 dsn=f'{host}:{port}/{service_name}',
-                                mode= oracledb.SYSDBA if sysdba else oracledb.DEFAULT_AUTH)
+                                mode=oracledb.SYSDBA if sysdba else oracledb.DEFAULT_AUTH)
             self.connected = True
             return None
         except oracledb.InterfaceError as e:
@@ -37,9 +37,6 @@ class OracleDB:
                 return self.INVALID_PASS
 
             return str(e)
-
-
-
 
     def disconnect(self):
         try:
@@ -66,7 +63,11 @@ class OracleDB:
 
                 self.cur.callproc("DBMS_OUTPUT.ENABLE")
 
-                self.cur.execute(plsql_block)
+                rows = self.cur.execute(plsql_block)
+
+                if rows:
+                    for row in rows:
+                        result.append(row)
 
                 status = self.cur.var(int)
                 while True:
@@ -80,7 +81,7 @@ class OracleDB:
 
                 self.cur.close()
             except oracledb.DatabaseError as e:
-                print("execute")
+                messagebox.showwarning("Warning", f"Error: {e}")
         else:
             messagebox.showwarning("Warning", "Not connected to a database!")
         return result

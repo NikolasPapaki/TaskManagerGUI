@@ -195,7 +195,8 @@ class TaskRunnerFrame(ctk.CTkFrame):
 
     def show_log_popup(self, log_content):
         """Display the log content in a modal, scrollable popup window using CustomTkinter."""
-        log_window = ctk.CTkToplevel(self)
+        root = self.winfo_toplevel()
+        log_window = ctk.CTkToplevel(root)
         log_window.title("Log Output")
 
         # Center the popup in the parent window
@@ -212,8 +213,10 @@ class TaskRunnerFrame(ctk.CTkFrame):
         log_window.geometry(f"{popup_width}x{popup_height}+{position_x}+{position_y}")
 
         # Make the popup modal
-        log_window.transient(self)  # Set the popup as a child of the parent window
+        log_window.transient(root)  # Set the popup as a child of the parent window
         log_window.grab_set()  # Disable interaction with the parent window
+        log_window.focus_force()
+        log_window.lift()
 
         # Create a frame to hold the Textbox and scrollbar
         frame = ctk.CTkFrame(log_window)
@@ -222,11 +225,12 @@ class TaskRunnerFrame(ctk.CTkFrame):
         # Create the CTkTextbox
         text_widget = ctk.CTkTextbox(frame, wrap="word", font=("Arial", 12))
         text_widget.insert("0.0", log_content)  # Insert the log content at the start
-        text_widget.configure(state="disabled")  # Make the textbox read-only
+        text_widget.configure(state="disabled")
         text_widget.pack(side="left", fill="both", expand=True)
 
         # Wait for the popup to close
         log_window.wait_window()
+        root.attributes('-alpha', 1.0)
 
     def update_progress_bar(self, completed, total):
         if total > 0:

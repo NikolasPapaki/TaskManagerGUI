@@ -55,6 +55,7 @@ class HealthCheckFrame(ctk.CTkFrame):
         # Store buttons in a dictionary for easy management
         self.buttons = {}
         self.button_configs = []
+        self.buttons_state = ctk.NORMAL
 
         self.combobox_width = 350
         # Pad environment options for consistent dropdown width
@@ -101,19 +102,19 @@ class HealthCheckFrame(ctk.CTkFrame):
         for button_name, button in self.buttons.items():
             config = self.healthcheck_manager.get_config(button_name)
             only_local = config.get("only_local", False)
-            if only_local and not is_local:
-                button.pack_forget()  # Hide the button if it's for local DB and the environment is not local
-            else:
-                button.pack(side="top", fill="x", pady=5, padx=5)  # Show the button if it matches the environment type
+            if button.winfo_exists():
+                if only_local and not is_local:
+                    button.pack_forget()  # Hide the button if it's for local DB and the environment is not local
+                else:
+                    button.pack(side="top", fill="x", pady=5,
+                                padx=5)  # Show the button if it matches the environment type
 
     def run_command(self, name, config):
-        print(name)
-        print(config)
         threading.Thread(target=self.run_commands_thread, args=[name, config]).start()
 
     def run_commands_thread(self, name, config):
         """Run a series of subprocesses with progress tracking and log output/errors."""
-        self._configure_buttons("disabled")
+        self._configure_buttons(ctk.DISABLED)
         # Ensure the task_logs directory exists
         log_dir = "task_logs"
         os.makedirs(log_dir, exist_ok=True)
@@ -137,8 +138,6 @@ class HealthCheckFrame(ctk.CTkFrame):
                 # Get Password for user
                 success, password = self.get_credentials(username=user, service_name=environment_details.get("service_name"), unique_name=unique_name)
                 # Check if we retrived password
-                print(user)
-                print(password)
                 if not success:
                     loop_complete = False
                     break
@@ -160,7 +159,7 @@ class HealthCheckFrame(ctk.CTkFrame):
                         result = self.database_manager.execute(config.get("plsql_block", None))
                         if result:
                             for line in result:
-                                log_file.write(line + "\n")
+                                log_file.write(str(line) + "\n")
 
                         self.database_manager.disconnect()
         finally:
@@ -186,16 +185,19 @@ class HealthCheckFrame(ctk.CTkFrame):
                     messagebox.showwarning("Finished!", f"{name} has finished with errors.")
                     os.remove(log_file_path)
 
-            self._configure_buttons("normal")
+            self._configure_buttons(ctk.NORMAL)
 
     def _configure_buttons(self, state):
         """Configure all buttons to the specified state."""
+        self.buttons_state = state
         for button in self.buttons.values():
-            button.configure(state=state)
+            if button.winfo_exists():
+                button.configure(state=state)
 
     def show_log_popup(self, log_content):
         """Display the log content in a modal, scrollable popup window using CustomTkinter."""
-        log_window = ctk.CTkToplevel(self)
+        root = self.winfo_toplevel()
+        log_window = ctk.CTkToplevel(root)
         log_window.title("Log Output")
 
         # Center the popup in the parent window
@@ -212,8 +214,10 @@ class HealthCheckFrame(ctk.CTkFrame):
         log_window.geometry(f"{popup_width}x{popup_height}+{position_x}+{position_y}")
 
         # Make the popup modal
-        log_window.transient(self)  # Set the popup as a child of the parent window
+        log_window.transient(root)  # Set the popup as a child of the parent window
         log_window.grab_set()  # Disable interaction with the parent window
+        log_window.focus_force()
+        log_window.lift()
 
         # Create a frame to hold the Textbox and scrollbar
         frame = ctk.CTkFrame(log_window)
@@ -227,6 +231,7 @@ class HealthCheckFrame(ctk.CTkFrame):
 
         # Wait for the popup to close
         log_window.wait_window()
+        root.attributes('-alpha', 1.0)
 
     def get_credentials(self, username, service_name, unique_name):
         if self.credential_manager.exists(unique_name, username):
@@ -321,34 +326,39 @@ class HealthCheckFrame(ctk.CTkFrame):
         return True if any(env in self.environment_manager.get_environment(selected_environment.strip()).get("host") for env in ["localhost", "127.0.0.1"]) else False
 
     def create_buttons_in_ui(self):
-        threading.Thread(target=lambda: self.create_buttons_in_ui_thread(), daemon=True).start()
-
-    def create_buttons_in_ui_thread(self):
         """Create and display buttons based on health check configuration."""
         for button in self.buttons.values():
-            button.destroy()
+            if button.winfo_exists():  # Check if button exists
+                button.destroy()
 
         self.button_configs = []
+        self.buttons = {}
 
         for name in self.healthcheck_manager.get_options():
-            # Capture the current button config
             self.button_configs.append({
                 "command": lambda btn=name, conf=self.healthcheck_manager.get_config(name): self.run_command(btn, conf),
                 "name": name
             })
 
-        # Create and pack buttons, storing references
-        for config in self.button_configs:
-            button = ctk.CTkButton(
-                master=self.button_frame,
-                text=config["name"],
-                command=config["command"]
-            )
-            self.buttons[config["name"]] = button
+        # Use self.after to schedule button creation on the main thread
+        self.after(0, self._create_buttons_from_config)
 
-        # Call the update_buttons method to adjust visibility based on initial environment selection
-        self.update_buttons_based_on_environment(self.environment_combobox.get().strip())
+    def _create_buttons_from_config(self):
+        """Helper method to create buttons from configs on the main thread."""
+        for config in self.button_configs:
+            if config["name"] not in self.buttons or not self.buttons[config["name"]].winfo_exists():
+                button = ctk.CTkButton(
+                    master=self.button_frame,
+                    text=config["name"],
+                    command=config["command"]
+                )
+                self.buttons[config["name"]] = button
+                button.pack(side="top", fill="x", pady=5, padx=5)
+
+        # Adjust visibility based on initial environment selection
+        selected_environment = self.environment_combobox.get().strip()
+        self.update_buttons_based_on_environment(selected_environment)
 
     def on_show(self):
         """Show the UI with the buttons created."""
-        self.update_buttons_based_on_environment(self.environment_combobox.get().strip())
+        self.create_buttons_in_ui()

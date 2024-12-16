@@ -65,3 +65,5 @@ class HealthCheck:
             return
         del self.healthcheck_dict[key]
         save_healthcheck_dict(self.healthcheck_dict)
+
+
