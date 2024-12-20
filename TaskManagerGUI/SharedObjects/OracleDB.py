@@ -25,12 +25,13 @@ class OracleDB:
             if self.connected:
                 self.disconnect()
 
-            if sysdba and use_oracle_client:
+            if use_oracle_client:
                 oracledb.init_oracle_client()
                 self.conn = oracledb.connect(mode=oracledb.SYSDBA)
             else:
                 self.conn = oracledb.connect(user=username, password=password,
-                                dsn=f'{host}:{port}/{service_name}')
+                                dsn=f'{host}:{port}/{service_name}',
+                                mode = oracledb.SYSDBA if sysdba else oracledb.DEFAULT_AUTH)
 
             self.connected = True
             return None

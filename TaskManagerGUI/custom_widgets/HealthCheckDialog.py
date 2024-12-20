@@ -51,6 +51,11 @@ class HealthCheckDialog(ctk.CTkToplevel):
         local_toggle = ctk.CTkSwitch(self, text="Only local", variable=self.local_var, onvalue="on", offvalue="off")
         local_toggle.pack(padx=10, pady=5, anchor="w")
 
+        # Only local toggle
+        self.oracle_client_var = ctk.StringVar(value="on" if input_defaults.get("oracle_client", False) else "off")
+        oracle_client_toggle = ctk.CTkSwitch(self, text="Use Oracle Client", variable=self.oracle_client_var, onvalue="on", offvalue="off")
+        oracle_client_toggle.pack(padx=10, pady=5, anchor="w")
+
         # PLSQL BLOCK big entry box
         plsql_label = ctk.CTkLabel(self, text="PLSQL BLOCK:")
         plsql_label.pack(padx=10, pady=5, anchor="w")
@@ -97,6 +102,7 @@ class HealthCheckDialog(ctk.CTkToplevel):
             "users": self.user_entry.get().strip(),
             "run_as_sysdba": self.sysdba_var.get() == "on",
             "only_local": self.local_var.get() == "on",
+            "oracle_client": self.oracle_client_var.get() == "on",
             "plsql_block": self.plsql_textbox.get("0.0", "end").strip(),
         }
         self.destroy()

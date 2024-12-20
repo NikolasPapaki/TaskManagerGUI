@@ -84,7 +84,8 @@ class HealthCheckFrame(ctk.CTkFrame):
             state="readonly",
             command=self.update_buttons_based_on_environment  # Call to update buttons when the environment changes
         )
-        self.environment_combobox.set(self.environments[0])
+        if self.environments:
+            self.environment_combobox.set(self.environments[0])
         self.environment_combobox.pack(pady=10, padx=10)
 
         # Create a button frame
@@ -115,9 +116,12 @@ class HealthCheckFrame(ctk.CTkFrame):
     def run_commands_thread(self, name, config):
         """Run a series of subprocesses with progress tracking and log output/errors."""
         self._configure_buttons(ctk.DISABLED)
+        self.environment_combobox.configure(state="disabled")
         # Ensure the task_logs directory exists
-        log_dir = "task_logs"
+        log_dir = "logs"
         os.makedirs(log_dir, exist_ok=True)
+
+        self.config_validation(config)
 
         # Generate a unique log file name with a timestamp
         selected_environment = self.environment_combobox.get().strip()
@@ -128,16 +132,17 @@ class HealthCheckFrame(ctk.CTkFrame):
         host = environment_details.get("host", None)
         service = environment_details.get("service_name", None)
         port = environment_details.get("port", None)
+
         run_as_sysdba = config.get('run_as_sysdba', False)
-        is_configured_for_local = config.get('only_local', False)
+        use_oracle_client = config.get('oracle_client', False)
 
         unique_name = str(host) + "_" + str(service)
-        use_oracle_client = False
         loop_complete = True
         password = None
         local_retrieved_password = False
 
         log_file = open(log_file_path, "w")
+
 
         try:
             for user in config.get("users", None).split(","):
@@ -149,17 +154,12 @@ class HealthCheckFrame(ctk.CTkFrame):
                     if not success:
                         loop_complete = False
                         break
-                elif not user and run_as_sysdba and is_configured_for_local:
-                    use_oracle_client = True
-                elif not user and (not run_as_sysdba or not is_configured_for_local):
-                    messagebox.showerror("Error!", "Invalid configuration to use oracle client for the connection.\n\n"
-                                                   "*Hint: 'Run as SysDba' and 'Only Local' must be set to True")
-                    loop_complete = False
-                    break
+
 
                 errormsg = self.database_manager.connect(username=user, password=password, host=host, port=port,
                                                          service_name=service, sysdba=run_as_sysdba,
                                                          use_oracle_client=use_oracle_client)
+
                 if errormsg:
                     if errormsg == self.database_manager.INVALID_PASS:
                         # If we save passwords locally then delete it
@@ -190,6 +190,7 @@ class HealthCheckFrame(ctk.CTkFrame):
         finally:
             # Close file in write mode
             log_file.close()
+
             # Open file in read mode
             log_file = open(log_file_path, "r")
             log_content = log_file.read()
@@ -214,6 +215,7 @@ class HealthCheckFrame(ctk.CTkFrame):
                     os.remove(log_file_path)
 
             self._configure_buttons(ctk.NORMAL)
+            self.environment_combobox.configure(state="normal")
 
     def _configure_buttons(self, state):
         """Configure all buttons to the specified state."""
@@ -380,6 +382,27 @@ class HealthCheckFrame(ctk.CTkFrame):
         # Call the update_buttons method to adjust visibility based on initial environment selection
         self.update_buttons_based_on_environment(self.environment_combobox.get().strip())
         self._configure_buttons(self.buttons_state)
+
+    def config_validation(self, config) -> bool:
+
+        only_local = config.get('only_local', False)
+        use_oracle_client = config.get('oracle_client', False)
+        users = config.get('users', False)
+        plsql_block = config.get('plsql_block', False)
+
+        if not plsql_block:
+            messagebox.showerror("Error!", "No PLSQL block is configured in this Health Check Procedure!")
+            return False
+
+        if users and use_oracle_client:
+            messagebox.showerror("Error!", "Combination of users and use of oracle client is not supported!")
+            return False
+
+        if use_oracle_client and not only_local:
+            messagebox.showerror("Error!", "Combination of Non local procedure and use of oracle client is not supported!")
+            return False
+
+
 
     def on_show(self):
         """Show the UI with the buttons created."""

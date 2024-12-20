@@ -9,8 +9,11 @@ class MyApp(TkinterDnD.Tk):
         # Set theme and mode
         ctk.set_default_color_theme("dark-blue")
 
-        self.title("Prime Core Dashboard")
-        self.geometry("1280x720")
+        self.title("Core Dev Dashboard")
+        width = self.winfo_screenwidth()
+        height = self.winfo_screenheight()
+        self.geometry("%dx%d" % (width/2, height/2))
+        self.lift()
 
         # Create an instance of ApplicationInterface
         self.sidebar = ApplicationInterface(self)
@@ -20,3 +23,4 @@ class MyApp(TkinterDnD.Tk):
 if __name__ == "__main__":
     app = MyApp()
     app.mainloop()
+
