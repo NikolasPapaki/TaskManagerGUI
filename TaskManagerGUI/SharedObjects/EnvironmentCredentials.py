@@ -24,7 +24,7 @@ class EnvironmentCredentials:
             cls._instance = super(EnvironmentCredentials, cls).__new__(cls, *args, **kwargs)
         return cls._instance
 
-    def __init__(self, file_path="environment_credentials.json"):
+    def __init__(self, file_path="config/environment_credentials.json"):
         self.file_path = file_path
         # Load or generate encryption key and initialize cipher suite
         self.key = load_or_generate_key()

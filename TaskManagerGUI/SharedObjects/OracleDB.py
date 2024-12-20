@@ -18,16 +18,20 @@ class OracleDB:
         self.cur = None
         self.connected = False
 
-    def connect(self, username, password, host, port, service_name, sysdba) -> str:
+    def connect(self, username, password=None, host=None, port=None, service_name=None, sysdba=False, use_oracle_client=False) -> str:
         # Already connected to a db
         try:
             # If we are already connected then disconnect
             if self.connected:
                 self.disconnect()
 
-            self.conn = oracledb.connect(user=username, password=password,
-                                dsn=f'{host}:{port}/{service_name}',
-                                mode=oracledb.SYSDBA if sysdba else oracledb.DEFAULT_AUTH)
+            if sysdba and use_oracle_client:
+                oracledb.init_oracle_client()
+                self.conn = oracledb.connect(mode=oracledb.SYSDBA)
+            else:
+                self.conn = oracledb.connect(user=username, password=password,
+                                dsn=f'{host}:{port}/{service_name}')
+
             self.connected = True
             return None
         except oracledb.InterfaceError as e:

@@ -20,13 +20,13 @@ class LogsFrame(ctk.CTkFrame):
         title_label.pack(pady=10)
 
         # Search by name
-        search_label = ctk.CTkLabel(self, text="Search tasks by name:", font=("Arial", 14))
+        search_label = ctk.CTkLabel(self, text="Search logs by name:", font=("Arial", 14))
         search_label.pack(pady=5, padx=10, anchor="w")
 
         self.search_var = ctk.StringVar()
         self.search_var.trace_add("write", self.filter_logs)
 
-        search_entry = ctk.CTkEntry(self, textvariable=self.search_var, placeholder_text="Search tasks")
+        search_entry = ctk.CTkEntry(self, textvariable=self.search_var, placeholder_text="Search name")
         search_entry.pack(pady=10, padx=10, fill=ctk.X)
 
         # Date range filtering

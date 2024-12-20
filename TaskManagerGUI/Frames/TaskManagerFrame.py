@@ -45,8 +45,8 @@ class TaskManagerFrame(ctk.CTkFrame):
 
     def load_logs(self):
         """Load task logs from file."""
-        if os.path.exists("task_logs.json"):
-            with open("task_logs.json", "r") as log_file:
+        if os.path.exists("task_auditlog.json"):
+            with open("task_auditlog.json", "r") as log_file:
                 return json.load(log_file)
         return []
 
@@ -161,18 +161,19 @@ class TaskManagerFrame(ctk.CTkFrame):
 
         # Prompt the user to input a new name
         input_dialog = CustomInputDialog(title="Enter New Task Name", fields=["Name"], default_values=[task_name], parent=self)
+        # Only task name is changed so only 1 field is returned
         new_task_name = input_dialog.show()
 
         if new_task_name:
             # Check if the new task name already exists
-            if any(task["name"] == new_task_name for task in self.tasks_manager.get_tasks()):
+            if any(task["name"] == new_task_name[0].strip() for task in self.tasks_manager.get_tasks()):
                 messagebox.showerror("Error", "Task names must be unique.")
                 return
 
             # Update the task name in the tasks_manager and tree
-            self.tasks_manager.rename_task(task_name, new_task_name)
-            self.tree.item(item_id, text=new_task_name)  # Update the tree with the new name
-            self.log_action("Renamed task", f"{task_name} -> {new_task_name}")
+            self.tasks_manager.rename_task(task_name, new_task_name[0].strip())
+            self.tree.item(item_id, text=new_task_name[0].strip())  # Update the tree with the new name
+            self.log_action("Renamed task", f"{task_name} -> {new_task_name[0].strip()}")
 
     def add_command(self, task_id):
         """Add a command to a task."""
@@ -298,7 +299,7 @@ class TaskManagerFrame(ctk.CTkFrame):
             "new_value": new_value
         }
         self.logs.append(log_entry)
-        with open("task_logs.json", "w") as log_file:
+        with open("task_auditlog.json", "w") as log_file:
             json.dump(self.logs, log_file, indent=4)
 
     def view_taskmanager_logs(self):

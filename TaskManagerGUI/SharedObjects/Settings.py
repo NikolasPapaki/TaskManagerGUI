@@ -10,7 +10,7 @@ class Settings:
             cls._instance = super(Settings, cls).__new__(cls, *args, **kwargs)
         return cls._instance
 
-    def __init__(self, file_path="settings.json"):
+    def __init__(self, file_path="config/settings.json"):
         self.file_path = file_path
         self.settings = self.load_settings()
 

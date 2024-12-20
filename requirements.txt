@@ -1,7 +1,0 @@
-customtkinter~=5.2.2
-tkcalendar~=1.6.1
-certifi~=2024.8.30
-requests~=2.32.3
-cryptography~=43.0.3
-tkinterdnd2~=0.4.2
-oracledb~=2.5.0

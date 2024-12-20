@@ -12,7 +12,7 @@ class AboutFrame(ctk.CTkFrame):
         # App Information
         self.app_name = "Core Dev Dashboard"
         self.version = VERSION
-        self.last_updated = "December 16, 2024"
+        self.last_updated = "December 17, 2024"
         self.description = "This app allows users to easily execute actions that would be done manually in the past for a user interface."
         self.features = [
             "Feature 1: Task Creation",

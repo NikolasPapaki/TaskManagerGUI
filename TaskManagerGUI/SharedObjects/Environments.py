@@ -95,9 +95,22 @@ class Environments:
     def get_environment(self, key, default=None):
         """Get an environment by key."""
         # Return copy so that changes made to the result won't affect self.Environments
-        return self.Environments.get(key, default).copy()
+        if self.Environments.get(key.strip(), None):
+            return self.Environments.get(key.strip()).copy()
+        else:
+            return default
 
     def get_environments(self):
         """Get a list of all environment keys."""
         return list(self.Environments.keys())
 
+    def get_all_rds(self):
+        rds_list = []
+        for environment in self.Environments:
+            if self.is_rds(environment):
+                rds_list.append(environment)
+
+        return rds_list
+
+    def is_rds(self, environment_name) -> bool:
+        return True if "rds.amazonaws.com" in self.get_environment(environment_name).get('host', '') else False

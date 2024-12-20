@@ -1,3 +1,6 @@
+import atexit
+import signal
+
 import customtkinter as ctk
 import subprocess
 import threading
@@ -19,6 +22,10 @@ class TaskRunnerFrame(ctk.CTkFrame):
     def __init__(self, parent, main_window):
         super().__init__(parent)
         self.parent = parent
+        self.processes = []
+        self.lock = threading.Lock()
+
+        atexit.register(self.cleanup_processes)
 
         label = ctk.CTkLabel(self, text="Task Runner", font=("Arial", 24))
         label.pack(pady=20)
@@ -46,6 +53,19 @@ class TaskRunnerFrame(ctk.CTkFrame):
 
         self.last_search_time = time.time()
         self.debounce_delay = 0.3
+
+
+    def cleanup_processes(self):
+        with self.lock:
+            for process in self.processes:
+                if process.poll() is None: # Process is stil running
+                    try:
+                        if os.name == "nt":
+                            os.kill(process.pid, signal.CTRL_BREAK_EVENT)
+                        else:
+                            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    except Exception as e:
+                        print(f"Failed to terminate process {process.pid}: {e}")
 
     def on_search_input(self, *args):
         """Handle the search input with debounce."""
@@ -127,7 +147,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
                 )
 
     def run_commands(self, args, name):
-        threading.Thread(target=self.run_commands_thread, args=[args, name]).start()
+        threading.Thread(target=self.run_commands_thread, args=[args, name], daemon=True).start()
 
     def run_commands_thread(self, commands, name):
         """Run a series of subprocesses with progress tracking and log output/errors."""
@@ -147,14 +167,18 @@ class TaskRunnerFrame(ctk.CTkFrame):
                     command = self.generate_command_from_parts(command_dict)
                     try:
                         # Run the command and capture output and errors
-                        result = subprocess.run(
+                        result = subprocess.Popen(
                             command,
                             shell=True,
-                            check=True,
                             stdout=log_file,  # Log standard output to the file
                             stderr=log_file,  # Log errors to the same file
-                            text=True  # Ensure output is in text format
+                            text=True,  # Ensure output is in text format
+                            creationflags= subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
                         )
+                        with self.lock:
+                            self.processes.append(result)
+
+                        result.wait()
 
                         if result.returncode != 0:
                             log_file.write(f"Command failed with exit code {result.returncode}.\n")
@@ -190,6 +214,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
                         self.show_log_popup(log_content)
 
         finally:
+            self.cleanup_processes()
             self.update_progress_bar(len(commands), len(commands))
             self._configure_buttons("normal")
 

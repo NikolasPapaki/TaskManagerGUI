@@ -3,7 +3,7 @@ import json
 from tkinter import messagebox
 
 
-def load_healthcheck_dict(filepath='healthcheck.json'):
+def load_healthcheck_dict(filepath='config/healthcheck.json'):
     healthcheck_dict = {}
     if os.path.exists(filepath):
         with open(filepath, "r") as file:
@@ -14,7 +14,7 @@ def load_healthcheck_dict(filepath='healthcheck.json'):
     return healthcheck_dict
 
 
-def save_healthcheck_dict(healthcheck_dict, filepath='healthcheck.json'):
+def save_healthcheck_dict(healthcheck_dict, filepath='config/healthcheck.json'):
     """Save the healthcheck options back to the JSON file."""
     with open(filepath, "w") as file:
         json.dump(healthcheck_dict, file, indent=4)

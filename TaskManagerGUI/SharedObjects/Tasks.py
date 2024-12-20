@@ -26,9 +26,9 @@ class Tasks:
 
     def load_tasks(self):
         """Load tasks from the tasks.json file."""
-        if os.path.exists("tasks.json"):
+        if os.path.exists("config/tasks.json"):
             try:
-                with open("tasks.json", "r") as file:
+                with open("config/tasks.json", "r") as file:
                     data = json.load(file)
                     return data.get("tasks", [])
             except json.JSONDecodeError:
@@ -42,7 +42,7 @@ class Tasks:
 
     def save_tasks(self):
         """Save the current tasks to tasks.json."""
-        with open("tasks.json", "w") as file:
+        with open("config/tasks.json", "w") as file:
             json.dump({"tasks": self.tasks}, file, indent=4)
 
     def add_task(self, task_name):

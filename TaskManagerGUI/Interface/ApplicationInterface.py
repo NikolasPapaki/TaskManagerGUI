@@ -15,6 +15,8 @@ class ApplicationInterface:
     def __init__(self, parent):
         self.parent = parent
 
+        os.makedirs('config', exist_ok=True)
+
         # Load settings and set current theme
         self.settings_manager = Settings()
         current_theme = self.settings_manager.get("theme", "dark")  # Default to "dark" if no theme is found

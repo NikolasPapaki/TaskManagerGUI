@@ -102,15 +102,15 @@ class HealthCheckFrame(ctk.CTkFrame):
         for button_name, button in self.buttons.items():
             config = self.healthcheck_manager.get_config(button_name)
             only_local = config.get("only_local", False)
-            if button.winfo_exists():
-                if only_local and not is_local:
-                    button.pack_forget()  # Hide the button if it's for local DB and the environment is not local
-                else:
-                    button.pack(side="top", fill="x", pady=5,
-                                padx=5)  # Show the button if it matches the environment type
+            if only_local and not is_local:
+                button.pack_forget()  # Hide the button if it's for local DB and the environment is not local
+            else:
+                button.pack(side="top", fill="x", pady=5, padx=5)  # Show the button if it matches the environment type
 
     def run_command(self, name, config):
-        threading.Thread(target=self.run_commands_thread, args=[name, config]).start()
+        selected_environment = self.environment_combobox.get().strip()
+        if messagebox.askyesno("Confirm!", f"Are you sure you want to execute {name} on {selected_environment}?"):
+            threading.Thread(target=self.run_commands_thread, args=[name, config]).start()
 
     def run_commands_thread(self, name, config):
         """Run a series of subprocesses with progress tracking and log output/errors."""
@@ -120,55 +120,83 @@ class HealthCheckFrame(ctk.CTkFrame):
         os.makedirs(log_dir, exist_ok=True)
 
         # Generate a unique log file name with a timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
-        log_file_path = f"{log_dir}/{task_name_sanitize(name)}_{timestamp}.log"
-
         selected_environment = self.environment_combobox.get().strip()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
+        log_file_path = f"{log_dir}/{task_name_sanitize(selected_environment + '_' + name)}_{timestamp}.log"
+
         environment_details = self.environment_manager.get_environment(selected_environment)
         host = environment_details.get("host", None)
         service = environment_details.get("service_name", None)
         port = environment_details.get("port", None)
         run_as_sysdba = config.get('run_as_sysdba', False)
+        is_configured_for_local = config.get('only_local', False)
+
         unique_name = str(host) + "_" + str(service)
+        use_oracle_client = False
         loop_complete = True
+        password = None
+        local_retrieved_password = False
+
         log_file = open(log_file_path, "w")
 
         try:
             for user in config.get("users", None).split(","):
                 # Get Password for user
-                success, password = self.get_credentials(username=user, service_name=environment_details.get("service_name"), unique_name=unique_name)
-                # Check if we retrived password
-                if not success:
+                if user:
+                    success, password, local_retrieved_password = self.get_credentials(username=user, service_name=environment_details.get("service_name"), unique_name=unique_name)
+
+                    # Check if we retrieved a password
+                    if not success:
+                        loop_complete = False
+                        break
+                elif not user and run_as_sysdba and is_configured_for_local:
+                    use_oracle_client = True
+                elif not user and (not run_as_sysdba or not is_configured_for_local):
+                    messagebox.showerror("Error!", "Invalid configuration to use oracle client for the connection.\n\n"
+                                                   "*Hint: 'Run as SysDba' and 'Only Local' must be set to True")
+                    loop_complete = False
+                    break
+
+                errormsg = self.database_manager.connect(username=user, password=password, host=host, port=port,
+                                                         service_name=service, sysdba=run_as_sysdba,
+                                                         use_oracle_client=use_oracle_client)
+                if errormsg:
+                    if errormsg == self.database_manager.INVALID_PASS:
+                        # If we save passwords locally then delete it
+                        if self.settings_manager.get("save_healthcheck_credentials_locally", False):
+
+                            # If password was retrieved from local file maybe it is outdated
+                            # or user proved wrong password
+                            if local_retrieved_password:
+                                messagebox.showerror("Error", "Incorrect password. Deleting local entry!")
+                            # Password was pulled from vault and something went terribly wrong
+                            else:
+                                messagebox.showerror("Error", "Incorrect password. Something went wrong!")
+
+                            self.credential_manager.delete(unique_name)
+                    else:
+                        messagebox.showerror("Error", f"Something went wrong!\n {errormsg}")
+
                     loop_complete = False
                     break
                 else:
-                    errormsg = self.database_manager.connect(username=user, password=password, host=host, port=port, service_name=service, sysdba=run_as_sysdba)
-                    if errormsg:
-                        if errormsg == self.database_manager.INVALID_PASS:
-                            if self.credential_manager.exists(unique_name, user):
-                                messagebox.showerror("Error", "Incorrect password. Deleting local entry!")
-                                self.credential_manager.delete(unique_name)
-                            else:
-                                messagebox.showerror("Error", "Incorrect password. Something went wrong!")
-                        else:
-                            messagebox.showerror("Error", f"Something went wrong!\n {errormsg}")
+                    result = self.database_manager.execute(config.get("plsql_block", None))
+                    if result:
+                        for line in result:
+                            log_file.write(str(line) + "\n")
 
-                        loop_complete = False
-                        break
-                    else:
-                        result = self.database_manager.execute(config.get("plsql_block", None))
-                        if result:
-                            for line in result:
-                                log_file.write(str(line) + "\n")
-
-                        self.database_manager.disconnect()
+                    # We disconnect because we need to reconnect next time with different user
+                    self.database_manager.disconnect()
         finally:
+            # Close file in write mode
+            log_file.close()
+            # Open file in read mode
             log_file = open(log_file_path, "r")
             log_content = log_file.read()
             log_file.close()
 
+            # Loop finished means we didnt have any errors
             if loop_complete:
-
                 if len(log_content) > 0:
                     if messagebox.askyesno("Finished!", f"Would you like to view the log output?"):
                         # Display the log content in a popup
@@ -191,8 +219,7 @@ class HealthCheckFrame(ctk.CTkFrame):
         """Configure all buttons to the specified state."""
         self.buttons_state = state
         for button in self.buttons.values():
-            if button.winfo_exists():
-                button.configure(state=state)
+            button.configure(state=state)
 
     def show_log_popup(self, log_content):
         """Display the log content in a modal, scrollable popup window using CustomTkinter."""
@@ -235,7 +262,7 @@ class HealthCheckFrame(ctk.CTkFrame):
 
     def get_credentials(self, username, service_name, unique_name):
         if self.credential_manager.exists(unique_name, username):
-            return True, sanitize_password(self.credential_manager.get(unique_name).get(username))
+            return True, sanitize_password(self.credential_manager.get(unique_name).get(username)), True
 
         elif self.vault_defined() and self.is_rds():
 
@@ -254,7 +281,7 @@ class HealthCheckFrame(ctk.CTkFrame):
                 if client_token_response.status_code != 200:
                     messagebox.showerror("Error",
                                          f"Failed to retrieve client token for vault. Status code {client_token_response.status_code}")
-                    return False, None
+                    return False, None, None
 
                 self.client_token = client_token_response.json().get("auth").get("client_token")
 
@@ -267,14 +294,14 @@ class HealthCheckFrame(ctk.CTkFrame):
             if response.status_code != 200:
                 messagebox.showerror("Error",
                                      f"Failed to retrieve credentials for {service_name}. Status code {response.status_code}")
-                return False, None
+                return False, None, None
 
             password = response.json().get('data').get('password')
 
             if self.settings_manager.get("save_healthcheck_credentials_locally", False):
                 self.credential_manager.add_or_update(unique_name, username, password)
 
-            return True, sanitize_password(password)
+            return True, sanitize_password(password), False
 
         elif self.is_rds():
             if messagebox.askyesno("Input Required", f"It appears that neither vault settings or default passwords have not been configured\n Would you like to provide password manually"):
@@ -287,14 +314,14 @@ class HealthCheckFrame(ctk.CTkFrame):
 
                 # If the user cancels the dialog, return the original template
                 if result is None or result == "":
-                    return False, None
+                    return False, None, None
 
                 else:
                     if self.settings_manager.get("save_healthcheck_credentials_locally", False):
                         self.credential_manager.add_or_update(unique_name, username, result[0])
-                    return True, sanitize_password(result[0]) # We only have password here
+                    return True, sanitize_password(result[0]), True  # We only have password here
             else:
-                return False, None
+                return False, None, None
         else:
             if messagebox.askyesno("Input Required", f"It appears this is not an RDS instance and default passwords have not been configured\n Would you like to provide password manually"):
                 dialog = CustomInputDialog(
@@ -306,14 +333,14 @@ class HealthCheckFrame(ctk.CTkFrame):
 
                 # If the user cancels the dialog, return the original template
                 if result is None or result == "":
-                    return False, None
+                    return False, None, None
 
                 else:
                     if self.settings_manager.get("save_healthcheck_credentials_locally", False):
                         self.credential_manager.add_or_update(unique_name, username, result[0])
-                    return True, sanitize_password(result[0]) # We only have password here
+                    return True, sanitize_password(result[0]), True  # We only have password here
             else:
-                return False, None
+                return False, None, None
 
 
     def vault_defined(self) -> bool:
@@ -328,36 +355,31 @@ class HealthCheckFrame(ctk.CTkFrame):
     def create_buttons_in_ui(self):
         """Create and display buttons based on health check configuration."""
         for button in self.buttons.values():
-            if button.winfo_exists():  # Check if button exists
-                button.destroy()
+            button.destroy()
 
         self.button_configs = []
         self.buttons = {}
 
         for name in self.healthcheck_manager.get_options():
+            # Capture the current button config
             self.button_configs.append({
                 "command": lambda btn=name, conf=self.healthcheck_manager.get_config(name): self.run_command(btn, conf),
                 "name": name
             })
 
-        # Use self.after to schedule button creation on the main thread
-        self.after(0, self._create_buttons_from_config)
-
-    def _create_buttons_from_config(self):
-        """Helper method to create buttons from configs on the main thread."""
+        # Create and pack buttons, storing references
         for config in self.button_configs:
-            if config["name"] not in self.buttons or not self.buttons[config["name"]].winfo_exists():
-                button = ctk.CTkButton(
-                    master=self.button_frame,
-                    text=config["name"],
-                    command=config["command"]
-                )
-                self.buttons[config["name"]] = button
-                button.pack(side="top", fill="x", pady=5, padx=5)
+            button = ctk.CTkButton(
+                master=self.button_frame,
+                text=config["name"],
+                command=config["command"]
+            )
+            self.buttons[config["name"]] = button
 
-        # Adjust visibility based on initial environment selection
-        selected_environment = self.environment_combobox.get().strip()
-        self.update_buttons_based_on_environment(selected_environment)
+
+        # Call the update_buttons method to adjust visibility based on initial environment selection
+        self.update_buttons_based_on_environment(self.environment_combobox.get().strip())
+        self._configure_buttons(self.buttons_state)
 
     def on_show(self):
         """Show the UI with the buttons created."""
