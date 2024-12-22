@@ -12,13 +12,14 @@ class AboutFrame(ctk.CTkFrame):
         # App Information
         self.app_name = "Core Dev Dashboard"
         self.version = VERSION
-        self.last_updated = "December 17, 2024"
-        self.description = "This app allows users to easily execute actions that would be done manually in the past for a user interface."
+        self.last_updated = "December 22, 2024"
+        self.description = "This app allows users to easily execute actions that would be done manually in the past, through a user interface."
         self.features = [
             "Feature 1: Task Creation",
             "Feature 2: Task execution",
             "Feature 3: Health Check Configuration",
-            "Feature 3: Health Check Execution",
+            "Feature 4: Health Check Execution",
+            "Feature 5: Password Retriever for RDS instances",
         ]
         self.developer_name = "Nikolas Papaki"
         self.developer_email = "npapaki@tsys.com"

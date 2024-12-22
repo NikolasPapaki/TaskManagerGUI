@@ -1,3 +1,6 @@
+import threading
+import time
+
 import customtkinter as ctk
 import json
 from custom_widgets import CustomInputDialog
@@ -145,10 +148,15 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
             self.get_passwords()
 
     def get_passwords(self):
+        threading.Thread(target=self.get_passwords_thread).start()
 
+    def get_passwords_thread(self):
         if not self.vault_defined():
             messagebox.showwarning("Warning!", "Vault settings have not been configured!\nAborting action!")
             return
+
+        self.toggle_buttons()
+        self.environment_combobox.configure(state="disabled")
 
         """Retrieve and display passwords for the selected service."""
         selected_environment = self.environment_combobox.get().strip()
@@ -167,25 +175,27 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
         finally:
             tab = self.tabview.add(selected_environment)
 
-        if tab:
-            # create_right_click_menu(self.tabview)  # Bind right-click menu to the new tab
+        try:
+            if tab:
+                # create_right_click_menu(self.tabview)  # Bind right-click menu to the new tab
 
-            textbox = ctk.CTkTextbox(tab, height=10)
-            textbox.pack(padx=10, pady=10, fill="both", expand=True)
-            textbox.delete("1.0", ctk.END)
-            # Create content for the tab
-            for user in self.users:
-                success, password, _ = self.get_credentials(user, service, unique_name)
-                if success:
-                    formatted_data = json.dumps({"username": user, "password": password}, indent=4)
-                    textbox.insert("1.0", formatted_data + ",\n")
-                else:
-                    # Something went wrong break the loop
-                    break
+                textbox = ctk.CTkTextbox(tab, height=10)
+                textbox.pack(padx=10, pady=10, fill="both", expand=True)
+                textbox.delete("1.0", ctk.END)
+                # Create content for the tab
+                for user in self.users:
+                    success, password, _ = self.get_credentials(user, service, unique_name)
+                    if success:
+                        formatted_data = json.dumps({"username": user, "password": password}, indent=4)
+                        textbox.insert("1.0", formatted_data + ",\n")
+                    else:
+                        # Something went wrong break the loop
+                        break
 
-            self.tabview.set(selected_environment)
-
-
+                self.tabview.set(selected_environment)
+        finally:
+            self.toggle_buttons()
+            self.environment_combobox.configure(state="normal")
 
     def get_credentials(self, username, service_name, unique_name):
         if self.client_token is None:
@@ -225,6 +235,12 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
 
         return True, password, False
 
+    def toggle_buttons(self):
+        for widget in self.button_frame.winfo_children():
+            if isinstance(widget, ctk.CTkButton):
+                current_state = widget.cget("state")
+                new_state = "disabled" if current_state == "normal" else "normal"
+                widget.configure(state=new_state)
 
     def vault_defined(self) -> bool:
         return self.settings_manager.exists("role_id") and self.settings_manager.exists("secret_id") and self.settings_manager.exists("vault_url")
