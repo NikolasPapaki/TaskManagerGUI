@@ -15,3 +15,4 @@ How to configure your Tasks in Health Check:
 - 'Run as sysdba' switch will connect to database as sysdba if enabled
 - 'Use Oracle Client' switch will make the use of oracle client to connect similar to 'sqlplus / as sysdba' in the command line.
     - No use to set 'Run as sysdba' switch for these types of procedures as sysdba is the default mode used
+    - 'Only local' switch must be used since oracle client will connect to your local database
