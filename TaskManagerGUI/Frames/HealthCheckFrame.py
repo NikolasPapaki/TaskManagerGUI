@@ -57,6 +57,10 @@ class HealthCheckFrame(ctk.CTkFrame):
         self.button_configs = []
         self.buttons_state = ctk.NORMAL
 
+        # Frame title
+        title_label = ctk.CTkLabel(self, text="Health Check", font=("Arial", 24))
+        title_label.pack(pady=10)
+
         self.combobox_width = 350
         # Pad environment options for consistent dropdown width
         self.environments = _pad_names(

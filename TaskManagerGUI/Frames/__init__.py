@@ -12,3 +12,4 @@ from .TaskManagerFrame import TaskManagerFrame
 from .LogsFrame import LogsFrame
 from .HealthCheckFrame import HealthCheckFrame
 from .HealthCheckManagerFrame import HealthCheckManagerFrame
+from .PasswordRetriverFrame import PasswordRetrieverFrame
