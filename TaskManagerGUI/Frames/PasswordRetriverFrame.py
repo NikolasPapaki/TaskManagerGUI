@@ -45,6 +45,8 @@ def load_or_generate_key():
 #     tabview.delete(tab)  # Use the tabview's delete method
 
 class PasswordRetrieverFrame(ctk.CTkFrame):
+    ORDER = 4
+
     def __init__(self, parent, main_window):
         super().__init__(parent)
 
@@ -76,7 +78,7 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
         # Add a label above the combobox
         self.environment_label = ctk.CTkLabel(
             self.environment_frame,
-            text="Select Environment:",
+            text="Select RDS Environment:",
             font=("Arial", 14)
         )
         self.environment_label.pack(pady=(10, 5), padx=10)
@@ -145,7 +147,7 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
     def get_passwords(self):
 
         if not self.vault_defined():
-            messagebox.showwarning("Warning!", "Vault settings have not been configured!")
+            messagebox.showwarning("Warning!", "Vault settings have not been configured!\nAborting action!")
             return
 
         """Retrieve and display passwords for the selected service."""
@@ -170,12 +172,13 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
 
             textbox = ctk.CTkTextbox(tab, height=10)
             textbox.pack(padx=10, pady=10, fill="both", expand=True)
+            textbox.delete("1.0", ctk.END)
             # Create content for the tab
             for user in self.users:
                 success, password, _ = self.get_credentials(user, service, unique_name)
                 if success:
                     formatted_data = json.dumps({"username": user, "password": password}, indent=4)
-                    textbox.insert("1.0", formatted_data)
+                    textbox.insert("1.0", formatted_data + ",\n")
                 else:
                     # Something went wrong break the loop
                     break
@@ -185,7 +188,6 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
 
 
     def get_credentials(self, username, service_name, unique_name):
-
         if self.client_token is None:
 
             decrypted_role_id = self.cipher_suite.decrypt(self.settings_manager.settings["role_id"].encode()).decode()

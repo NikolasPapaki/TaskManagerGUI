@@ -8,7 +8,7 @@ from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
 
 class LogsFrame(ctk.CTkFrame):
-    ORDER = 96
+    ORDER = 97
 
     def __init__(self, parent, main_window):
         super().__init__(parent)

@@ -5,7 +5,7 @@ from SharedObjects import HealthCheck
 from custom_widgets import HealthCheckDialog
 
 class HealthCheckManagerFrame(ctk.CTkFrame):
-    ORDER = 5
+    ORDER = 96
     def __init__(self, parent, main_window):
         super().__init__(parent)
         self.main_window = main_window

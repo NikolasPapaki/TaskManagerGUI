@@ -10,7 +10,7 @@ from tkinterdnd2 import TkinterDnD, DND_FILES  # Import drag-and-drop support
 from custom_widgets import CustomInputDialog
 
 class TaskManagerFrame(ctk.CTkFrame):
-    ORDER = 4
+    ORDER = 95
 
     def __init__(self, parent, main_window):
         super().__init__(parent)
