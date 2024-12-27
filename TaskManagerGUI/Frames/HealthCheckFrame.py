@@ -11,6 +11,7 @@ import string
 import requests
 import json
 from cryptography.fernet import Fernet
+from Logging import Logger
 
 def task_name_sanitize(task_name) -> str:
     """Sanitize the task name by replacing invalid characters with underscores."""
@@ -47,6 +48,7 @@ class HealthCheckFrame(ctk.CTkFrame):
         self.credential_manager = EnvironmentCredentials()
         self.database_manager = OracleDB()
         self.healthcheck_manager = HealthCheck()
+        self.logger = Logger()
 
         self.client_token = None
         self.key = load_or_generate_key()
@@ -150,6 +152,7 @@ class HealthCheckFrame(ctk.CTkFrame):
 
         try:
             for user in config.get("users", None).split(","):
+                self.logger.info(f"Starting execution of '{name}' for '{user}'")
                 # Get Password for user
                 if user:
                     success, password, local_retrieved_password = self.get_credentials(username=user, service_name=environment_details.get("service_name"), unique_name=unique_name)
@@ -209,14 +212,16 @@ class HealthCheckFrame(ctk.CTkFrame):
                 else:
                     messagebox.showinfo("Finished!", f"{name} has finished!")
                     os.remove(log_file_path)
+                self.logger.info(f"'{name}' has finished!")
             else:
                 if len(log_content) > 0:
                     if messagebox.askyesno("Finished!", f"{name} has finished with errors. Would you like to view the log output?"):
                         # Display the log content in a popup
                         self.show_log_popup(log_content)
                 else:
-                    messagebox.showwarning("Finished!", f"{name} has finished with errors.")
                     os.remove(log_file_path)
+                self.logger.info(f"'{name}' has finished with errors.")
+
 
             self._configure_buttons(ctk.NORMAL)
             self.environment_combobox.configure(state="normal")
@@ -268,6 +273,7 @@ class HealthCheckFrame(ctk.CTkFrame):
 
     def get_credentials(self, username, service_name, unique_name):
         if self.credential_manager.exists(unique_name, username):
+            self.logger.info(f"Password retrieved locally for {username} of {service_name}")
             return True, sanitize_password(self.credential_manager.get(unique_name).get(username)), True
 
         elif self.vault_defined() and self.is_rds():
@@ -285,11 +291,13 @@ class HealthCheckFrame(ctk.CTkFrame):
                                                       verify=False)
 
                 if client_token_response.status_code != 200:
+                    self.logger.error(f"Failed to retrieve client token for vault. Status code {client_token_response.status_code}")
                     messagebox.showerror("Error",
                                          f"Failed to retrieve client token for vault. Status code {client_token_response.status_code}")
                     return False, None, None
 
                 self.client_token = client_token_response.json().get("auth").get("client_token")
+                self.logger.info("Vault client token retrieved")
 
             user_category = "app" if "app" in username.lower() else "admin"
             prime_pattern = r"\w+pd\d+"
@@ -298,6 +306,7 @@ class HealthCheckFrame(ctk.CTkFrame):
             response = requests.get(url, headers={"X-Vault-Token": self.client_token}, verify=False)
 
             if response.status_code != 200:
+                self.logger.error(f"Failed to retrieve credentials for {service_name}. Status code {response.status_code}")
                 messagebox.showerror("Error",
                                      f"Failed to retrieve credentials for {service_name}. Status code {response.status_code}")
                 return False, None, None
@@ -307,6 +316,7 @@ class HealthCheckFrame(ctk.CTkFrame):
             if self.settings_manager.get("save_healthcheck_credentials_locally", False):
                 self.credential_manager.add_or_update(unique_name, username, password)
 
+            self.logger.info(f"Password retrieved successfully for {username}")
             return True, sanitize_password(password), False
 
         elif self.is_rds():
@@ -395,17 +405,19 @@ class HealthCheckFrame(ctk.CTkFrame):
         plsql_block = config.get('plsql_block', False)
 
         if not plsql_block:
+            self.logger.error("No PLSQL block is configured in this Health Check Procedure!")
             messagebox.showerror("Error!", "No PLSQL block is configured in this Health Check Procedure!")
             return False
 
         if users and use_oracle_client:
+            self.logger.error("Combination of users and use of oracle client is not supported!")
             messagebox.showerror("Error!", "Combination of users and use of oracle client is not supported!")
             return False
 
         if use_oracle_client and not only_local:
+            self.logger.error("Combination of Non local procedure and use of oracle client is not supported!")
             messagebox.showerror("Error!", "Combination of Non local procedure and use of oracle client is not supported!")
             return False
-
 
 
     def on_show(self):

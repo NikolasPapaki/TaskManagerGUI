@@ -1,17 +1,7 @@
 import os
 import json
 from tkinter import messagebox
-
-
-def load_healthcheck_dict(filepath='config/healthcheck.json'):
-    healthcheck_dict = {}
-    if os.path.exists(filepath):
-        with open(filepath, "r") as file:
-            try:
-                healthcheck_dict = json.load(file)
-            except json.JSONDecodeError:
-                messagebox.showinfo("Invalid JSON format", "Healthcheck options are not loaded.")
-    return healthcheck_dict
+from Logging import Logger
 
 
 def save_healthcheck_dict(healthcheck_dict, filepath='config/healthcheck.json'):
@@ -30,7 +20,10 @@ class HealthCheck:
         return cls._instance
 
     def __init__(self):
-        self.healthcheck_dict = load_healthcheck_dict()
+        self.healthcheck_dict = self.load_healthcheck_dict()
+        # Initialize the logger
+        self.logger = Logger()
+
 
     def get_config(self, key, default=None):
         """Get configuration of an action."""
@@ -43,6 +36,7 @@ class HealthCheck:
     def add_new_option(self, key, config):
         """Add a new health check option."""
         if key in self.healthcheck_dict:
+            self.logger.info(f"Option '{key}' already exists.")
             messagebox.showinfo("Duplicate Key", f"Option '{key}' already exists.")
         else:
             self.healthcheck_dict[key] = config
@@ -51,6 +45,7 @@ class HealthCheck:
     def edit_option(self, key, new_config):
         """Edit an existing health check option."""
         if key not in self.healthcheck_dict:
+            self.logger.info(f"No option found for '{key}'.")
             messagebox.showinfo("Option Not Found", f"No option found for '{key}'.")
             return
 
@@ -61,9 +56,20 @@ class HealthCheck:
     def delete_option(self, key):
         """Delete an existing health check option."""
         if key not in self.healthcheck_dict:
+            self.logger.info(f"No option found for '{key}'.")
             messagebox.showinfo("Option Not Found", f"No option found for '{key}'.")
             return
         del self.healthcheck_dict[key]
         save_healthcheck_dict(self.healthcheck_dict)
 
+    def load_healthcheck_dict(self, filepath='config/healthcheck.json'):
+        healthcheck_dict = {}
+        if os.path.exists(filepath):
+            with open(filepath, "r") as file:
+                try:
+                    healthcheck_dict = json.load(file)
+                except json.JSONDecodeError:
+                    self.logger.info("Invalid JSON format, Healthcheck options are not loaded.")
+                    messagebox.showinfo("Invalid JSON format", "Healthcheck options are not loaded.")
+        return healthcheck_dict
 

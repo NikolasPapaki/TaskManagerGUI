@@ -1,7 +1,7 @@
 import json
 import os
 from cryptography.fernet import Fernet
-
+from Logging import Logger
 
 def load_or_generate_key():
     """Load the encryption key from a file or generate a new one if not found."""
@@ -31,6 +31,8 @@ class EnvironmentCredentials:
         self.cipher_suite = Fernet(self.key)
 
         self.credentials = self.load_credentials()
+        # Initialize the logger
+        self.logger = Logger()
 
     def load_credentials(self):
         """Load settings from a JSON file. If the file doesn't exist, return an empty dictionary."""
@@ -45,7 +47,7 @@ class EnvironmentCredentials:
                             for user, password in users.items()
                         }
                 except json.JSONDecodeError:
-                    pass
+                    self.logger.warning(f"{self.file_path} is not in a valid JSON format")
         return decrypted_credentials
 
     def get(self, service, default=None):

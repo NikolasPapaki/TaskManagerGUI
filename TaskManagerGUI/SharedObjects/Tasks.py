@@ -1,7 +1,7 @@
 import json
 import os
 from tkinter import messagebox
-
+from Logging import Logger
 
 class Tasks:
     _instance = None  # Class-level variable to store the single instance
@@ -24,6 +24,8 @@ class Tasks:
             self.tasks = self.load_tasks()
             self._initialized = True  # Set the flag to True after initialization
 
+        self.logger = Logger()
+
     def load_tasks(self):
         """Load tasks from the tasks.json file."""
         if os.path.exists("config/tasks.json"):
@@ -32,12 +34,13 @@ class Tasks:
                     data = json.load(file)
                     return data.get("tasks", [])
             except json.JSONDecodeError:
+                self.logger.info("Tasks.json is not in a valid format. No tasks were loaded.")
                 messagebox.showwarning(
                     "Warning",
                     "Tasks.json is not in a valid format. No tasks were loaded."
                 )
             except Exception as e:
-                print(f"Unexpected error loading tasks.json: {e}")
+                self.logger.error(f"Unexpected error loading tasks.json: {e}")
         return []
 
     def save_tasks(self):

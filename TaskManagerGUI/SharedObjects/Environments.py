@@ -3,6 +3,7 @@ import re
 from custom_widgets import CustomInputDialog
 from tkinter import messagebox
 from SharedObjects import Settings
+from Logging import Logger
 
 class Environments:
     _instance = None  # Class-level variable to store the single instance
@@ -17,7 +18,8 @@ class Environments:
         self.parent = parent  # Parent window for dialogs
         self.Environments = {}  # Initialize an empty dictionary for environments
         self.settings_manager = Settings()
-
+        # Initialize the logger
+        self.logger = Logger()
         tns_path = self.settings_manager.get("tns_path", None)
         if tns_path is None:
             tns_path = self.get_tnsnames_path()
@@ -53,7 +55,9 @@ class Environments:
             if result and os.path.exists(result[0]):
                 return result[0]
             elif result:
+                self.logger.warning("Invalid or non-existent file path provided for tnsnames.ora")
                 messagebox.showwarning("Warning", "Invalid or non-existent file path provided.")
+
 
         return None
 
@@ -88,9 +92,14 @@ class Environments:
                     }
 
             if not self.Environments:
+                self.logger.warning(f"No valid entries found in {tns_path}.")
                 messagebox.showwarning("Warning", f"No valid entries found in {tns_path}.")
+
+
         except Exception as e:
+            self.logger.warning(f"Error reading tnsnames.ora: {e}")
             messagebox.showwarning("Warning", f"Error reading tnsnames.ora: {e}")
+
 
     def get_environment(self, key, default=None):
         """Get an environment by key."""

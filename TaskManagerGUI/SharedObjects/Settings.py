@@ -1,5 +1,6 @@
 import json
 import os
+from Logging import Logger
 
 class Settings:
     _instance = None  # Class-level variable to store the single instance
@@ -13,6 +14,7 @@ class Settings:
     def __init__(self, file_path="config/settings.json"):
         self.file_path = file_path
         self.settings = self.load_settings()
+        self.logger = Logger()
 
     def load_settings(self):
         """Load settings from a JSON file. If the file doesn't exist, return an empty dictionary."""
@@ -21,7 +23,7 @@ class Settings:
                 try:
                     return json.load(file)
                 except json.JSONDecodeError:
-                    print("Invalid JSON format. Starting with empty settings.")
+                    self.logger.info("Invalid JSON format. Starting with empty settings.")
         return {}
 
     def get(self, key, default=None):
@@ -45,9 +47,9 @@ class Settings:
         if key in self.settings:
             del self.settings[key]
             self.save_settings()
-            print(f"Key '{key}' has been deleted.")
+            self.logger.info(f"Key '{key}' has been deleted.")
         else:
-            print(f"Key '{key}' does not exist.")
+            self.logger.info(f"Key '{key}' does not exist.")
 
     def save_settings(self):
         """Save the current settings to the JSON file."""

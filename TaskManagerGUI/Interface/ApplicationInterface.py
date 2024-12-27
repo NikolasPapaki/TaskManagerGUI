@@ -1,3 +1,5 @@
+from logging import Logger
+
 import customtkinter as ctk
 import inspect
 from Frames import *
@@ -6,6 +8,7 @@ import os
 import json
 from SharedObjects import Settings
 from tkinterdnd2 import TkinterDnD, DND_FILES
+from Logging import Logger
 
 def button_formating(text):
     """Add spaces before uppercase letters in camel case strings."""
@@ -16,6 +19,9 @@ class ApplicationInterface:
         self.parent = parent
 
         os.makedirs('config', exist_ok=True)
+
+        # Initialize the logger
+        self.logger = Logger()
 
         # Load settings and set current theme
         self.settings_manager = Settings()
@@ -56,6 +62,7 @@ class ApplicationInterface:
             self.sidebar.pack(side=ctk.RIGHT, fill=ctk.Y)
             self.content_area.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True)
         else:
+            self.logger.debug(f"Invalid value for sidebar_side: {self.sidebar_side}. Use 'left' or 'right'.")
             raise ValueError(f"Invalid value for sidebar_side: {self.sidebar_side}. Use 'left' or 'right'.")
 
     def create_sidebar_buttons(self):

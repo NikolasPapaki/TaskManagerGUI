@@ -10,6 +10,7 @@ from datetime import datetime
 import re
 from SharedObjects import Tasks  # Import the shared Tasks object
 import os
+from Logging import Logger
 
 def task_name_sanitize(task_name) -> str:
     """Sanitize the task name by replacing invalid characters with underscores."""
@@ -24,6 +25,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
         self.parent = parent
         self.processes = []
         self.lock = threading.Lock()
+        self.logger = Logger()
 
         atexit.register(self.cleanup_processes)
 
@@ -65,7 +67,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
                         else:
                             os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                     except Exception as e:
-                        print(f"Failed to terminate process {process.pid}: {e}")
+                        self.logger.error(f"Failed to terminate process {process.pid}: {e}")
 
     def on_search_input(self, *args):
         """Handle the search input with debounce."""
@@ -165,6 +167,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
             with open(log_file_path, "w") as log_file:  # Open log file for writing
                 for i, command_dict in enumerate(commands):
                     command = self.generate_command_from_parts(command_dict)
+                    self.logger.info(f"Starting execution for {command} of {name}")
                     try:
                         # Run the command and capture output and errors
                         result = subprocess.Popen(
@@ -182,6 +185,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
 
                         if result.returncode != 0:
                             log_file.write(f"Command failed with exit code {result.returncode}.\n")
+                            self.logger.error(f"Command '{command}' failed with exit code {result.returncode}.")
                             messagebox.showerror("Error",
                                                  f"Command '{command}' failed with exit code {result.returncode}.")
                             break
@@ -190,18 +194,21 @@ class TaskRunnerFrame(ctk.CTkFrame):
                     except subprocess.CalledProcessError as e:
                         # Log the error to the file and show a messagebox
                         log_file.write(f"Command failed with exit code {e.returncode}.\n")
+                        self.logger.error(f"Command '{command}' failed with exit code {result.returncode}.")
                         messagebox.showerror("Error", f"Command '{command}' failed with exit code {e.returncode}.")
                         break
 
                     except FileNotFoundError:
                         # Log the error to the file and show a messagebox
                         log_file.write(f"Command '{command}' not found.\n")
+                        self.logger.error(f"Command '{command}' not found.")
                         messagebox.showerror("Error", f"Command '{command}' not found.")
                         break
 
                     except Exception as e:
                         # Log the unexpected error to the file and show a messagebox
                         log_file.write(f"An unexpected error occurred: {str(e)}\n")
+                        self.logger.error(f"An unexpected error occurred: {str(e)}")
                         messagebox.showerror("Error", f"An unexpected error occurred: {str(e)}")
                         break
 
@@ -217,6 +224,7 @@ class TaskRunnerFrame(ctk.CTkFrame):
             self.cleanup_processes()
             self.update_progress_bar(len(commands), len(commands))
             self._configure_buttons("normal")
+            self.logger.info(f"Execution of {name} finished")
 
     def show_log_popup(self, log_content):
         """Display the log content in a modal, scrollable popup window using CustomTkinter."""

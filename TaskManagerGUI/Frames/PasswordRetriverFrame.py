@@ -136,8 +136,8 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
         self.get_passwords()
 
     def get_admin_users_password(self):
-        """Load admin users JSON."""
-        self.load_json_file("users/admin.json")
+        """Load admin.json users JSON."""
+        self.load_json_file("users/admin.json.json")
 
     def get_specific_user_password(self):
         """Show a dialog to add a specific user and display placeholder JSON."""
