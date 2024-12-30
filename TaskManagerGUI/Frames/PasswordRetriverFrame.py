@@ -58,7 +58,7 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
         self.settings_manager = Settings()
         self.credential_manager = EnvironmentCredentials()
 
-        self.users = []
+        self.users = {}
         self.client_token = None
         self.key = load_or_generate_key()
         self.cipher_suite = Fernet(self.key)
@@ -137,7 +137,8 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
 
     def get_admin_users_password(self):
         """Load admin.json users JSON."""
-        self.load_json_file("users/admin.json.json")
+        self.load_json_file("users/admin.json")
+        self.get_passwords(admin=True)
 
     def get_specific_user_password(self):
         """Show a dialog to add a specific user and display placeholder JSON."""
@@ -147,10 +148,10 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
             self.users = username
             self.get_passwords()
 
-    def get_passwords(self):
-        threading.Thread(target=self.get_passwords_thread).start()
+    def get_passwords(self, admin=False):
+        threading.Thread(target=self.get_passwords_thread, args=[admin,]).start()
 
-    def get_passwords_thread(self):
+    def get_passwords_thread(self, admin=False):
         if not self.vault_defined():
             messagebox.showwarning("Warning!", "Vault settings have not been configured!\nAborting action!")
             return
@@ -164,6 +165,9 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
         host = environment_details.get("host", None)
         service = environment_details.get("service_name", None)
         unique_name = str(host) + "_" + str(service)
+
+        prime_pattern = r"\btc(t?)p\w+\d+"
+        system = "PRIME" if re.match(prime_pattern, service.lower()) else "ONLINE"
 
         # Check if the tab for the service exists, if not, add it
         try:
@@ -182,15 +186,17 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
                 textbox = ctk.CTkTextbox(tab, height=10)
                 textbox.pack(padx=10, pady=10, fill="both", expand=True)
                 textbox.delete("1.0", ctk.END)
-                # Create content for the tab
-                for user in self.users:
-                    success, password, _ = self.get_credentials(user, service, unique_name)
+                # if we have a list then its admin users else its app users so it's a dict, and we select the system we want PRIME/ONLINE
+                users_to_iterate = self.users if admin else self.users.get(system)
+                for user in users_to_iterate:
+                    success, password, error = self.get_credentials(user, service, unique_name)
                     if success:
                         formatted_data = json.dumps({"username": user, "password": password}, indent=4)
                         textbox.insert("1.0", formatted_data + ",\n")
                     else:
-                        # Something went wrong break the loop
-                        break
+                        # 404 means not found
+                        if error == 404:
+                            pass
 
                 self.tabview.set(selected_environment)
         finally:
@@ -213,12 +219,13 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
             if client_token_response.status_code != 200:
                 messagebox.showerror("Error",
                                      f"Failed to retrieve client token for vault. Status code {client_token_response.status_code}")
-                return False, None, None
+                return False, None, client_token_response.status_code
 
             self.client_token = client_token_response.json().get("auth").get("client_token")
 
-        user_category = "app" if "app" in username.lower() else "admin"
-        prime_pattern = r"\w+pd\d+"
+        app_user_pattern = r"(prm|onl)_\w+\d{4}"
+        user_category = "app" if re.match(app_user_pattern, username.lower()) else "admin"
+        prime_pattern = r"\btc(t?)p\w+\d+"
         system = "prime" if re.match(prime_pattern, service_name.lower()) else "online"
         url = f"{self.settings_manager.get('vault_url')}/v1/secret/tct{system}%2Fdb%2Foracle%2F{user_category}%2Feu-central-1-{service_name.lower()}%2F{system}%2F{username.lower()}"
         response = requests.get(url, headers={"X-Vault-Token": self.client_token}, verify=False)
@@ -226,14 +233,14 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
         if response.status_code != 200:
             messagebox.showerror("Error",
                                  f"Failed to retrieve credentials for {service_name}. Status code {response.status_code}")
-            return False, None, None
+            return False, None, response.status_code
 
         password = response.json().get('data').get('password')
 
         if self.settings_manager.get("save_healthcheck_credentials_locally", False):
             self.credential_manager.add_or_update(unique_name, username, password)
 
-        return True, password, False
+        return True, password, None
 
     def toggle_buttons(self):
         for widget in self.button_frame.winfo_children():

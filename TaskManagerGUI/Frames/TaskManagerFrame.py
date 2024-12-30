@@ -45,8 +45,8 @@ class TaskManagerFrame(ctk.CTkFrame):
 
     def load_logs(self):
         """Load task logs from file."""
-        if os.path.exists("task_auditlog.json"):
-            with open("task_auditlog.json", "r") as log_file:
+        if os.path.exists("Logs/task_auditlog.json"):
+            with open("Logs/task_auditlog.json", "r") as log_file:
                 return json.load(log_file)
         return []
 
@@ -299,7 +299,7 @@ class TaskManagerFrame(ctk.CTkFrame):
             "new_value": new_value
         }
         self.logs.append(log_entry)
-        with open("task_auditlog.json", "w") as log_file:
+        with open("Logs/task_auditlog.json", "w") as log_file:
             json.dump(self.logs, log_file, indent=4)
 
     def view_taskmanager_logs(self):

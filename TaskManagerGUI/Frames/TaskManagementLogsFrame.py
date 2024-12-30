@@ -55,7 +55,7 @@ class TaskManagementLogsFrame(ctk.CTkFrame):
 
     def load_logs(self):
         """Load logs from a JSON file and populate the Treeview."""
-        log_file = "task_auditlog.json"
+        log_file = "Logs/task_auditlog.json"
         if os.path.exists(log_file):
             with open(log_file, "r") as file:
                 try:

@@ -155,8 +155,8 @@ class TaskRunnerFrame(ctk.CTkFrame):
         """Run a series of subprocesses with progress tracking and log output/errors."""
         self._configure_buttons("disabled")
 
-        # Ensure the task_logs directory exists
-        log_dir = "task_logs"
+        # Ensure the Execution_Logs directory exists
+        log_dir = "Execution_Logs"
         os.makedirs(log_dir, exist_ok=True)
 
         # Generate a unique log file name with a timestamp

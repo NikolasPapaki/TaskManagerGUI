@@ -20,10 +20,10 @@ class Logger:
         # Ensure the logger doesn't already have handlers to avoid duplicates
         if not self.logger.hasHandlers():
             # Create a Logging directory if it doesn't exist
-            os.makedirs("Logging", exist_ok=True)
+            os.makedirs("Logs", exist_ok=True)
 
             # Create a file handler to write logs to `Logging/log.txt`
-            file_handler = logging.FileHandler("Logging/log.txt")
+            file_handler = logging.FileHandler("Logs/Application_Logs.txt")
             file_handler.setLevel(logging.DEBUG)
 
             # Set a custom formatter for the handler

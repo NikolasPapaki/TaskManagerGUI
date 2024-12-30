@@ -80,7 +80,7 @@ class LogsFrame(ctk.CTkFrame):
         # Initialize the filtered_log_files list
         self.filtered_log_files = []
 
-        # Load log files from the task_logs directory
+        # Load log files from the Execution_Logs directory
         self.load_logs()
 
         # Bind right-click to show context menu
@@ -91,8 +91,8 @@ class LogsFrame(ctk.CTkFrame):
         self.context_menu = tk.Menu(self, tearoff=False)
 
     def load_logs(self):
-        """Load log files from the task_logs directory."""
-        logs_dir = "task_logs"
+        """Load log files from the Execution_Logs directory."""
+        logs_dir = "Execution_Logs"
 
         if not os.path.exists(logs_dir):
             return
@@ -236,7 +236,7 @@ class LogsFrame(ctk.CTkFrame):
         log_files_to_delete = []
         for item in selected_items:
             log_file_name = self.logs_treeview.item(item, "values")[0]  # Get the log file name
-            log_file_path = os.path.join("task_logs", log_file_name)  # Build the full path to the log file
+            log_file_path = os.path.join("Execution_Logs", log_file_name)  # Build the full path to the log file
             log_files_to_delete.append((log_file_name, log_file_path))
 
         # Show a confirmation dialog before deleting
@@ -263,7 +263,7 @@ class LogsFrame(ctk.CTkFrame):
 
         if selected_item:
             log_file_name = self.logs_treeview.item(selected_item[0])["values"][0]  # Get the log file name
-            log_file_path = os.path.join("task_logs", log_file_name)  # Build the full path to the log file
+            log_file_path = os.path.join("Execution_Logs", log_file_name)  # Build the full path to the log file
 
             if os.path.exists(log_file_path):
                 # Read the log file content
@@ -328,7 +328,7 @@ class LogsFrame(ctk.CTkFrame):
             return
 
         log_file_name = self.logs_treeview.item(selected_item, "values")[0]  # Get the log file name
-        log_file_path = os.path.join("task_logs", log_file_name)  # Build the full path to the log file
+        log_file_path = os.path.join("Execution_Logs", log_file_name)  # Build the full path to the log file
 
         # Show a confirmation dialog before deleting
         if messagebox.askyesno("Confirm Deletion", f"Are you sure you want to delete '{log_file_name}'? This action cannot be undone!"):

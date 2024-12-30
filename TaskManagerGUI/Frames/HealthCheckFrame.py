@@ -123,8 +123,8 @@ class HealthCheckFrame(ctk.CTkFrame):
         """Run a series of subprocesses with progress tracking and log output/errors."""
         self._configure_buttons(ctk.DISABLED)
         self.environment_combobox.configure(state="disabled")
-        # Ensure the task_logs directory exists
-        log_dir = "logs"
+        # Ensure the Execution_Logs directory exists
+        log_dir = "Execution_Logs"
         os.makedirs(log_dir, exist_ok=True)
 
         self.config_validation(config)
@@ -299,7 +299,8 @@ class HealthCheckFrame(ctk.CTkFrame):
                 self.client_token = client_token_response.json().get("auth").get("client_token")
                 self.logger.info("Vault client token retrieved")
 
-            user_category = "app" if "app" in username.lower() else "admin"
+            app_user_pattern = r"(prm|onl)_\w+\d{4}"
+            user_category = "app" if re.match(app_user_pattern, username.lower()) else "admin"
             prime_pattern = r"\w+pd\d+"
             system = "prime" if re.match(prime_pattern, service_name.lower()) else "online"
             url = f"{self.settings_manager.get('vault_url')}/v1/secret/tct{system}%2Fdb%2Foracle%2F{user_category}%2Feu-central-1-{service_name.lower()}%2F{system}%2F{username.lower()}"
