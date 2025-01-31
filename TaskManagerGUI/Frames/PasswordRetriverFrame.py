@@ -138,7 +138,7 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
     def get_admin_users_password(self):
         """Load admin.json users JSON."""
         self.load_json_file("users/admin.json")
-        self.get_passwords(admin=True)
+        self.get_passwords(islist=True)
 
     def get_specific_user_password(self):
         """Show a dialog to add a specific user and display placeholder JSON."""
@@ -146,12 +146,12 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
         username = dialog.show()
         if username:
             self.users = username
-            self.get_passwords()
+            self.get_passwords(islist=True)
 
-    def get_passwords(self, admin=False):
-        threading.Thread(target=self.get_passwords_thread, args=[admin,]).start()
+    def get_passwords(self, islist=False):
+        threading.Thread(target=self.get_passwords_thread, args=[islist,]).start()
 
-    def get_passwords_thread(self, admin=False):
+    def get_passwords_thread(self, islist=False):
         if not self.vault_defined():
             messagebox.showwarning("Warning!", "Vault settings have not been configured!\nAborting action!")
             return
@@ -186,8 +186,7 @@ class PasswordRetrieverFrame(ctk.CTkFrame):
                 textbox = ctk.CTkTextbox(tab, height=10)
                 textbox.pack(padx=10, pady=10, fill="both", expand=True)
                 textbox.delete("1.0", ctk.END)
-                # if we have a list then its admin users else its app users so it's a dict, and we select the system we want PRIME/ONLINE
-                users_to_iterate = self.users if admin else self.users.get(system)
+                users_to_iterate = self.users if islist else self.users.get(system)
                 for user in users_to_iterate:
                     success, password, error = self.get_credentials(user, service, unique_name)
                     if success:
